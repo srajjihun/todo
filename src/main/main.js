@@ -13,6 +13,20 @@ const ipc = require('./ipc');
 // 커스텀 AUMID가 등록돼 있지 않아 알림이 조용히 사라지므로 실행 파일 경로를 쓴다
 app.setAppUserModelId(app.isPackaged ? 'com.siraj.desk-widget' : process.execPath);
 
+// 어떤 예외도 조용히 사라지지 않게 파일에 남긴다.
+// (창을 띄우는 도중 예외가 나면 아이콘을 눌러도 아무 일도 안 일어나는 것처럼 보인다)
+function logFatal(tag, err) {
+  const line = new Date().toISOString() + '  !! ' + tag + ': '
+    + (err && err.stack ? err.stack.split('\n').slice(0, 3).join(' | ') : String(err));
+  console.error(line);
+  try {
+    require('fs').appendFileSync(
+      require('path').join(app.getPath('userData'), 'sync.log'), line + '\n');
+  } catch { /* 무시 */ }
+}
+process.on('uncaughtException', (e) => logFatal('uncaughtException', e));
+process.on('unhandledRejection', (e) => logFatal('unhandledRejection', e));
+
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   // 이미 실행 중이라 이 프로세스는 종료된다. 아무 흔적이 없으면
@@ -33,8 +47,16 @@ if (!gotLock) {
 
   // 아이콘을 다시 눌렀을 때: 창이 죽어 있으면 새로 만들고, 최신 상태로 맞춘다
   app.on('second-instance', () => {
-    windowMod.show();
-    sync.syncNow('second-instance');
+    try {
+      windowMod.show();
+    } catch (e) {
+      logFatal('second-instance: 창 표시 실패', e);
+    }
+    try {
+      sync.syncNow('second-instance');
+    } catch (e) {
+      logFatal('second-instance: 동기화 실패', e);
+    }
   });
 
   app.whenReady().then(() => {

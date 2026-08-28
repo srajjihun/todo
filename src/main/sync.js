@@ -16,7 +16,8 @@ let stores = null; // { settings, cache, pending }
 let onState = () => {};
 let onStatus = () => {};
 let syncing = null;
-let syncingSince = 0;         // 진행 중인 동기화가 시작된 시각
+let syncingSince = 0;
+let calendarsFresh = false;   // 이번 주기에 캘린더 목록을 실제로 받아왔는가         // 진행 중인 동기화가 시작된 시각
 const SYNC_STUCK_MS = 90000;  // 이보다 오래 끌면 죽은 것으로 보고 새로 시작한다
 let timer = null;
 let retryTimer = null;
@@ -311,9 +312,15 @@ function syncedCalendarIds() {
   // 계정을 바꾸면 저장된 표시 목록이 옛 계정 캘린더를 가리켜 하나도 안 맞을 수 있다.
   // 그 경우 설정을 지우고 전체 표시로 되돌린다 (아무것도 안 보이는 사고 방지).
   if (!ids.length && known.length && st.visibleCalendarIds && st.visibleCalendarIds.length) {
-    console.warn('[sync] 표시 캘린더 설정이 현재 계정과 맞지 않아 전체 표시로 되돌립니다');
-    stores.settings.update({ visibleCalendarIds: null });
-    ids = known.slice();
+    if (calendarsFresh) {
+      logLine('표시 캘린더 설정이 현재 계정과 맞지 않아 전체 표시로 되돌립니다');
+      stores.settings.update({ visibleCalendarIds: null });
+      ids = known.slice();
+    } else {
+      // 목록 조회에 실패한 상태의 임시 목록으로 사용자 설정을 지워선 안 된다
+      logLine('!! 캘린더 목록을 못 받아 표시 설정은 그대로 두고 이번 주기는 건너뜁니다');
+      ids = known.slice();
+    }
   }
   // 캘린더 목록을 아직 못 읽었을 때만 'primary' 별칭을 쓴다.
   // 목록을 안 뒤에도 별칭을 함께 동기화하면 같은 캘린더가 두 벌로 들어온다.
@@ -337,9 +344,16 @@ async function pullCalendars() {
       title: c.summaryOverride || c.summary || c.id,
       primary: !!c.primary,
     }));
+    calendarsFresh = true;
     stores.cache.save();
   } catch (e) {
     // 캘린더 목록 권한이 아직 없으면(재로그인 전) 기본 캘린더만 쓰고 계속 진행
+    calendarsFresh = false;
+    if (e && e.insufficientScope) {
+      // 권한이 모자란 상태로 계속 진행하면 캘린더가 없는 것처럼 보여 설정이 망가진다.
+      logLine('!! 권한 부족 — 다시 로그인해야 합니다 (' + e.message + ')');
+      throw new auth.AuthRequiredError('구글 권한이 부족합니다. 설정에서 다시 로그인해주세요.');
+    }
     if (e instanceof api.ApiError && (e.status === 403 || e.status === 401)) {
       logLine('!! 캘린더 목록 조회 실패 → ' + e.status + ' ' + e.message);
       if (!(cache.calendars || []).length) {

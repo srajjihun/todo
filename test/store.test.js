@@ -53,3 +53,24 @@ test('기본값 객체는 인스턴스 간 공유되지 않음', () => {
   const s2 = new JsonStore(tmpFile('n2.json'), defaults);
   assert.equal(s2.data.nested.list.length, 0);
 });
+
+test('mergeOnWrite: 다른 프로세스가 바꾼 값을 덮어쓰지 않는다', () => {
+  const file = tmpFile('m.json');
+  const a = new JsonStore(file, { x: 1, y: 1 }, { mergeOnWrite: true });
+  const b = new JsonStore(file, { x: 1, y: 1 }, { mergeOnWrite: true });
+  a.update({ x: 10 });        // A가 x를 바꿈
+  b.update({ y: 20 });        // B는 x가 1인 줄 알지만, y만 바꿔야 한다
+  const c = new JsonStore(file, { x: 1, y: 1 });
+  assert.equal(c.data.x, 10, 'A의 변경이 살아있어야 함');
+  assert.equal(c.data.y, 20, 'B의 변경도 반영');
+});
+
+test('mergeOnWrite 꺼진 저장소는 메모리 내용을 그대로 쓴다', () => {
+  const file = tmpFile('n.json');
+  const s = new JsonStore(file, { list: {} });
+  s.data.list.a = 1;          // 메모리에서 직접 수정
+  s.update({ at: 'now' });
+  const c = new JsonStore(file, { list: {} });
+  assert.equal(c.data.list.a, 1, '직접 수정한 내용이 보존되어야 함');
+  assert.equal(c.data.at, 'now');
+});

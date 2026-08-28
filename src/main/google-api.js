@@ -61,7 +61,11 @@ async function apiFetch(url, { method = 'GET', body, retryOn401 = true, headers:
   if (!res.ok) {
     const err = data && data.error;
     const reason = (err && err.errors && err.errors[0] && err.errors[0].reason) || (err && err.status);
-    throw new ApiError(res.status, (err && err.message) || res.statusText, reason);
+    const msg = (err && err.message) || res.statusText;
+    const apiErr = new ApiError(res.status, msg, reason);
+    // 스코프가 모자라면 재로그인이 필요하다. 권한 없는 캘린더로 오해해 건너뛰면 안 된다.
+    apiErr.insufficientScope = res.status === 403 && /insufficient authentication scopes/i.test(msg);
+    throw apiErr;
   }
   return data;
 }

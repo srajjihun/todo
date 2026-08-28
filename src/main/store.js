@@ -5,9 +5,10 @@ const fs = require('fs');
 const path = require('path');
 
 class JsonStore {
-  constructor(filePath, defaults) {
+  constructor(filePath, defaults, opts) {
     this.filePath = filePath;
     this.defaults = defaults;
+    this.mergeOnWrite = !!(opts && opts.mergeOnWrite);
     this.data = this._load();
   }
 
@@ -28,8 +29,15 @@ class JsonStore {
     fs.renameSync(tmp, this.filePath);
   }
 
+  // mergeOnWrite(설정 파일)일 때는 저장 직전에 디스크를 다시 읽어, 바꾸려는 항목만 덮는다.
+  // 같은 파일을 두 프로세스가 쓰면 나중에 저장한 쪽이 상대의 설정을 통째로 날려버리기 때문이다.
+  // 캐시처럼 메모리에서 직접 고치는 저장소에는 쓰면 안 된다(받아온 데이터가 사라진다).
   update(partial) {
-    Object.assign(this.data, partial);
+    if (this.mergeOnWrite) {
+      this.data = Object.assign(this._load(), partial);
+    } else {
+      Object.assign(this.data, partial);
+    }
     this.save();
     return this.data;
   }
@@ -80,7 +88,7 @@ const DEFAULTS = {
 
 function createStores(dir) {
   return {
-    settings: new JsonStore(path.join(dir, 'settings.json'), DEFAULTS.settings),
+    settings: new JsonStore(path.join(dir, 'settings.json'), DEFAULTS.settings, { mergeOnWrite: true }),
     tokens: new JsonStore(path.join(dir, 'tokens.json'), DEFAULTS.tokens),
     cache: new JsonStore(path.join(dir, 'cache.json'), DEFAULTS.cache),
     pending: new JsonStore(path.join(dir, 'pending.json'), DEFAULTS.pending),
