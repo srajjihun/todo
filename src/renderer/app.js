@@ -28,6 +28,7 @@
     settings: window.SettingsView,
   };
 
+  let manualSync = false;   // ⟳ 로 시작한 동기화인지
   let toastTimer = null;
   function toast(msg) {
     const el = document.getElementById('toast');
@@ -129,6 +130,7 @@
     document.getElementById('btn-hide').addEventListener('click', () => api.hideWindow());
     document.getElementById('btn-sync').addEventListener('click', () => {
       if (!S.data.loggedIn) { showView('settings'); return; }
+      manualSync = true;
       call(api.syncNow());
     });
   }
@@ -153,8 +155,25 @@
       renderCurrentDataView();
     });
     api.onSyncStatus((status) => {
+      const wasSyncing = S.status && S.status.phase === 'syncing';
       S.status = status;
       renderStatus();
+      // 동기화가 순식간에 끝나고 시각이 분 단위라 글자가 안 바뀌어 보인다.
+      // 사용자가 직접 누른 경우에는 결과를 분명히 알려준다.
+      if (manualSync && wasSyncing && status.phase !== 'syncing') {
+        manualSync = false;
+        if (status.phase === 'idle') {
+          const n = (S.data.events || []).length;
+          const m = (S.data.tasks || []).length + (S.data.todoOccurrences || []).length;
+          toast(`동기화 완료 · 일정 ${n} · 할 일 ${m}`);
+        } else if (status.phase === 'offline') {
+          toast('네트워크에 연결할 수 없습니다');
+        } else if (status.phase === 'auth-required') {
+          toast('구글 로그인이 필요합니다');
+        } else if (status.message) {
+          toast(status.message);
+        }
+      }
     });
     api.onAuthChanged(({ loggedIn }) => {
       S.data.loggedIn = loggedIn;
