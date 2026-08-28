@@ -29,11 +29,13 @@ function currentSize() {
 let win = null;
 let settingsStore = null;
 let isQuitting = () => false;
+let createOpts = null;   // 창을 다시 만들 때 쓰려고 보관
 let saveMoveTimer = null;
 let saveSizeTimer = null;
 
 function create(store, opts) {
   settingsStore = store;
+  if (opts) createOpts = opts;
   if (opts && opts.isQuitting) isQuitting = opts.isQuitting;
 
   const size = currentSize();
@@ -122,7 +124,17 @@ function create(store, opts) {
   return win;
 }
 
-function get() { return win; }
+function get() { return win && !win.isDestroyed() ? win : null; }
+
+// 창이 없거나 파괴됐으면 다시 만든다.
+// 메인 프로세스만 살아남고 창이 사라지면(렌더러 강제 종료 등) 앱이 유령처럼 떠 있으면서
+// 중복 실행 방지에만 걸려, 아이콘을 눌러도 아무 일도 일어나지 않는 상태가 된다.
+function ensureWindow() {
+  if (win && !win.isDestroyed()) return win;
+  if (!settingsStore) return null;
+  console.log('[window] 창이 없어 다시 만듭니다');
+  return create(settingsStore, createOpts || {});
+}
 
 function bottomRightBounds() {
   const wa = screen.getPrimaryDisplay().workArea; // 작업표시줄 제외 영역
@@ -192,16 +204,18 @@ function setPinned(pinned) {
 }
 
 function show() {
-  if (!win) return;
-  if (win.isMinimized()) win.restore(); // Win+D 등으로 최소화된 경우 복원
-  win.show();
-  win.focus();
+  const w = ensureWindow();
+  if (!w) return;
+  if (w.isMinimized()) w.restore(); // Win+D 등으로 최소화된 경우 복원
+  w.show();
+  w.focus();
 }
-function hide() { if (win) win.hide(); }
+function hide() { const w = get(); if (w) w.hide(); }
 function toggleVisibility() {
-  if (!win) return;
-  if (win.isVisible() && !win.isMinimized()) win.hide();
+  const w = get();
+  if (!w) { show(); return; } // 창이 죽어 있으면 되살린다
+  if (w.isVisible() && !w.isMinimized()) w.hide();
   else show();
 }
 
-module.exports = { create, get, setPinned, resetPosition, show, hide, toggleVisibility };
+module.exports = { create, get, ensureWindow, setPinned, resetPosition, show, hide, toggleVisibility };

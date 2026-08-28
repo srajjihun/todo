@@ -31,7 +31,11 @@ if (!gotLock) {
   // 창을 숨겨도(또는 닫혀도) 트레이에 상주
   app.on('window-all-closed', () => { /* 종료하지 않음 — 트레이 상주 */ });
 
-  app.on('second-instance', () => windowMod.show());
+  // 아이콘을 다시 눌렀을 때: 창이 죽어 있으면 새로 만들고, 최신 상태로 맞춘다
+  app.on('second-instance', () => {
+    windowMod.show();
+    sync.syncNow('second-instance');
+  });
 
   app.whenReady().then(() => {
     Menu.setApplicationMenu(null);

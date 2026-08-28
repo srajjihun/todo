@@ -46,7 +46,11 @@ const tombstoned = new Set();
 function init(s, callbacks, opts) {
   stores = s;
   if (opts && opts.userDataDir) logPath = path.join(opts.userDataDir, 'sync.log');
-  logLine('앱 시작 · 로그인=' + auth.isLoggedIn());
+  logLine('앱 시작 · 로그인=' + auth.isLoggedIn()
+    + ' · userData=' + (opts && opts.userDataDir)
+    + ' · 캐시파일=' + stores.cache.filePath
+    + ' · 시작시 일정=' + Object.keys(stores.cache.data.events || {}).length
+    + ' · 반복마스터=' + Object.keys(stores.cache.data.todoMasters || {}).length);
   if (callbacks.onState) onState = callbacks.onState;
   if (callbacks.onStatus) onStatus = callbacks.onStatus;
   migrateCache();
@@ -59,7 +63,7 @@ function migrateCache() {
   const legacyToken = Object.prototype.hasOwnProperty.call(cache, 'eventsSyncToken');
   const hasOrphan = Object.values(cache.events || {}).some((e) => !e.calendarId);
   if (!legacyToken && !hasOrphan) return;
-  console.log('[sync] 구버전 캐시 발견 → 일정 캐시를 비우고 전체 재동기화합니다');
+  logLine('구버전 캐시 발견 → 일정 캐시를 비우고 전체 재동기화 (legacyToken=' + legacyToken + ', orphan=' + hasOrphan + ')');
   cache.events = {};
   cache.eventsSyncTokens = {};
   cache.todoMasters = {};
@@ -148,18 +152,51 @@ async function doSync(reason) {
   const t0 = Date.now();
   logLine('동기화 시작 (' + (reason || '?') + ')');
   setStatus({ phase: 'syncing', message: null });
+  // 동기화가 중간에 실패하면 화면이 텅 비는 것을 막기 위해 직전 상태를 들고 있는다
+  const snapshot = {
+    events: stores.cache.data.events,
+    todoMasters: stores.cache.data.todoMasters,
+    tasks: stores.cache.data.tasks,
+  };
+  let ok = false;
+  try {
   const warnings = await flushPending();
   await pullCalendars();
+  logLine('대상 캘린더: ' + syncedCalendarIds().map((x) => x.slice(0, 22)).join(' , ')
+    + ' | 할일캘린더=' + String(stores.settings.data.todoCalendarId).slice(0, 22)
+    + ' | 표시설정=' + JSON.stringify(stores.settings.data.visibleCalendarIds));
   await pullEvents();
   await pullTodoMasters();
   await pullTasks();
   stores.cache.update({ lastSyncAt: new Date().toISOString() });
+  try {
+    const stat = fs.statSync(stores.cache.filePath);
+    logLine('캐시 저장됨 ' + stores.cache.filePath + ' (' + stat.size + 'B, ' + stat.mtime.toISOString() + ')');
+  } catch (e) {
+    logLine('!! 캐시 저장 확인 실패: ' + e.message);
+  }
   pushState();
   setStatus({ phase: 'idle', message: warnings.length ? warnings[0] : null });
   logLine('동기화 완료 (' + (Date.now() - t0) + 'ms) · 일정 '
     + Object.keys(stores.cache.data.events).length
     + ' · 반복마스터 ' + Object.keys(stores.cache.data.todoMasters || {}).length
     + ' · Tasks ' + Object.keys(stores.cache.data.tasks).length);
+    ok = true;
+  } finally {
+    if (!ok) {
+      // 실패했으면 직전에 보고 있던 내용을 되돌려 빈 화면이 되지 않게 한다
+      const now = stores.cache.data;
+      if (Object.keys(now.events).length === 0 && Object.keys(snapshot.events).length > 0) {
+        now.events = snapshot.events;
+        now.todoMasters = snapshot.todoMasters;
+        now.tasks = snapshot.tasks;
+        stores.cache.save();
+        logLine('동기화 실패로 이전 내용을 되돌렸습니다 (일정 '
+          + Object.keys(snapshot.events).length + ')');
+        pushState();
+      }
+    }
+  }
 }
 
 function handleSyncError(e) {
@@ -304,6 +341,7 @@ async function pullCalendars() {
   } catch (e) {
     // 캘린더 목록 권한이 아직 없으면(재로그인 전) 기본 캘린더만 쓰고 계속 진행
     if (e instanceof api.ApiError && (e.status === 403 || e.status === 401)) {
+      logLine('!! 캘린더 목록 조회 실패 → ' + e.status + ' ' + e.message);
       if (!(cache.calendars || []).length) {
         cache.calendars = [{ id: 'primary', title: '기본 캘린더', primary: true }];
         stores.cache.save();
@@ -328,9 +366,13 @@ async function pullEvents() {
       if (e instanceof api.ApiError && e.status === 410) {
         cache.eventsSyncTokens[calId] = null;
         await pullEventsFull(calId, seen);
+      } else if (api.isRetryable(e)) {
+        // 속도 제한/일시적 오류는 건너뛰면 안 된다. 던져서 재시도 대상으로 만든다.
+        logLine('!! 캘린더 일시 오류 ' + calId.slice(0, 22) + ' → '
+          + (e.status || e.name) + ' ' + e.message + ' (재시도 예정)');
+        throw e;
       } else if (e instanceof api.ApiError && (e.status === 403 || e.status === 404)) {
-        // 접근 권한이 사라진 캘린더는 건너뛴다
-        console.warn('[sync] 캘린더 건너뜀:', calId, e.message);
+        logLine('!! 캘린더 건너뜀(권한/없음) ' + calId.slice(0, 22) + ' → ' + e.status + ' ' + e.message);
       } else {
         throw e;
       }
@@ -391,7 +433,7 @@ async function pullEventsIncremental(calendarId, seen) {
 async function pullTodoMasters() {
   const cache = stores.cache.data;
   const calId = stores.settings.data.todoCalendarId;
-  if (!calId) { cache.todoMasters = {}; return; }
+  if (!calId) { logLine('!! 할일 캘린더가 지정되지 않아 반복 할 일을 건너뜁니다'); cache.todoMasters = {}; return; }
   const server = {};
   let pageToken;
   try {
@@ -404,7 +446,14 @@ async function pullTodoMasters() {
       pageToken = res.nextPageToken;
     } while (pageToken);
   } catch (e) {
-    if (e instanceof api.ApiError && (e.status === 403 || e.status === 404)) return;
+    if (api.isRetryable(e)) {
+      logLine('!! 할일 캘린더 일시 오류 → ' + (e.status || e.name) + ' ' + e.message + ' (재시도 예정)');
+      throw e; // 조용히 건너뛰면 반복 할 일이 통째로 사라진다
+    }
+    if (e instanceof api.ApiError && (e.status === 403 || e.status === 404)) {
+      logLine('!! 할일 캘린더 접근 불가 → ' + e.status + ' ' + e.message + ' (이전 값 유지)');
+      return;
+    }
     throw e;
   }
   cache.todoMasters = server;
