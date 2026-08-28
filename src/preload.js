@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('api', {
   peekCalendar: (id, days) => invoke('calendars:peek', id, days),
   // 반복 할 일
   addRecurringTodo: (t) => invoke('todos:addRecurring', t),
+  moveEventToTodo: (eventId) => invoke('todos:moveEvent', eventId),
   setTodoDone: (masterId, date, done) => invoke('todos:setDone', masterId, date, done),
   deleteRecurringTodo: (masterId) => invoke('todos:deleteRecurring', masterId),
   // 창

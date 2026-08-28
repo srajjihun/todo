@@ -74,6 +74,17 @@
       render();
       return;
     }
+    const mv = e.target.closest('.row-move');
+    if (mv) {
+      const btn = mv;
+      btn.disabled = true;
+      btn.textContent = '옮기는 중…';
+      ctx.call(ctx.api.moveEventToTodo(btn.dataset.id)).then((r) => {
+        if (r) ctx.toast('할 일 캘린더로 옮겼습니다');
+        render();
+      });
+      return;
+    }
     const del = e.target.closest('.row-del');
     if (del) {
       const id = del.dataset.id;
@@ -177,9 +188,14 @@
       const time = ev.allDay
         ? '<span class="ev-time allday">종일</span>'
         : `<span class="ev-time">${esc(ev.startTime || '')}</span>`;
+      const canMove = !!(data.todoCalendarId) && ev.calendarId !== data.todoCalendarId;
+      const moveBtn = canMove
+        ? `<button class="row-move" data-id="${esc(ev.id)}" title="할 일 캘린더로 옮기기 (반복이면 전체)">→할일</button>`
+        : '';
       return `<div class="event-row">
         ${time}
         <span class="ev-title" title="${esc(ev.title)}">${esc(ev.title)}</span>
+        ${moveBtn}
         <button class="row-del${confirm ? ' confirm' : ''}" data-id="${esc(ev.id)}">${confirm ? '삭제?' : '✕'}</button>
       </div>`;
     }).join('') || '<div class="empty-hint">일정이 없습니다</div>';

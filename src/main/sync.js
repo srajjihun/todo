@@ -27,6 +27,22 @@ function init(s, callbacks) {
   stores = s;
   if (callbacks.onState) onState = callbacks.onState;
   if (callbacks.onStatus) onStatus = callbacks.onStatus;
+  migrateCache();
+}
+
+// 구버전(캘린더 구분이 없던 시절)이 남긴 캐시는 calendarId도 recurringEventId도 없어서
+// 캘린더 탭에 유령처럼 남고 할 일 조인도 안 된다. 발견되면 통째로 비우고 전체 재동기화한다.
+function migrateCache() {
+  const cache = stores.cache.data;
+  const legacyToken = Object.prototype.hasOwnProperty.call(cache, 'eventsSyncToken');
+  const hasOrphan = Object.values(cache.events || {}).some((e) => !e.calendarId);
+  if (!legacyToken && !hasOrphan) return;
+  console.log('[sync] 구버전 캐시 발견 → 일정 캐시를 비우고 전체 재동기화합니다');
+  cache.events = {};
+  cache.eventsSyncTokens = {};
+  cache.todoMasters = {};
+  delete cache.eventsSyncToken;
+  stores.cache.save();
 }
 
 function getState() {
@@ -212,7 +228,15 @@ function syncedCalendarIds() {
   let ids = st.visibleCalendarIds && st.visibleCalendarIds.length
     ? st.visibleCalendarIds.filter((id) => known.includes(id))
     : known.slice();
+  // 캘린더 목록을 아직 못 읽었을 때만 'primary' 별칭을 쓴다.
+  // 목록을 안 뒤에도 별칭을 함께 동기화하면 같은 캘린더가 두 벌로 들어온다.
   if (!ids.length) ids = ['primary'];
+  else if (known.length) {
+    delete cache.eventsSyncTokens.primary;
+    for (const [id, ev] of Object.entries(cache.events)) {
+      if (ev.calendarId === 'primary') delete cache.events[id];
+    }
+  }
   if (st.todoCalendarId && !ids.includes(st.todoCalendarId)) ids.push(st.todoCalendarId);
   return ids;
 }
@@ -708,6 +732,30 @@ async function deleteRecurringTodo(masterId) {
   return { ok: true };
 }
 
+// 캘린더 탭의 일정을 할 일 캘린더로 옮긴다.
+// 반복 일정이면 인스턴스가 아니라 부모를 옮겨야 시리즈 전체가 따라간다.
+async function moveEventToTodoCalendar(eventId) {
+  const cache = stores.cache.data;
+  const dest = stores.settings.data.todoCalendarId;
+  if (!dest) throw new Error('설정에서 할 일 캘린더를 먼저 선택해주세요.');
+  const ev = cache.events[eventId];
+  if (!ev) throw new Error('일정을 찾을 수 없습니다.');
+  if (ev.calendarId === dest) return { ok: true };
+
+  const masterId = ev.recurringEventId || ev.id;
+  await api.moveEvent(ev.calendarId, masterId, dest);
+
+  // 옮긴 시리즈를 캐시에서 걷어내고 양쪽 캘린더를 다시 읽는다
+  for (const [id, e] of Object.entries(cache.events)) {
+    if (e.id === masterId || e.recurringEventId === masterId) delete cache.events[id];
+  }
+  delete cache.eventsSyncTokens[ev.calendarId];
+  delete cache.eventsSyncTokens[dest];
+  stores.cache.save();
+  await syncNow('after-move');
+  return { ok: true, moved: masterId };
+}
+
 // 할 일 캘린더가 바뀌면 관련 캐시를 새로 만든다
 function onTodoCalendarChanged() {
   stores.cache.data.todoMasters = {};
@@ -747,6 +795,7 @@ module.exports = {
   postponeOverdue,
   onTaskListChanged,
   addRecurringTodo,
+  moveEventToTodoCalendar,
   setOccurrenceDone,
   deleteRecurringTodo,
   onTodoCalendarChanged,

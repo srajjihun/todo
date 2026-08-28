@@ -83,6 +83,11 @@ function patchEvent(calendarId, eventId, body, etag) {
   return apiFetch(`${CAL_BASE}/calendars/${cal(calendarId)}/events/${encodeURIComponent(eventId)}`,
     { method: 'PATCH', body, headers: etag ? { 'If-Match': etag } : undefined });
 }
+// 일정을 다른 캘린더로 옮긴다 (반복 일정은 부모를 옮기면 시리즈 전체가 이동)
+function moveEvent(calendarId, eventId, destination) {
+  return apiFetch(`${CAL_BASE}/calendars/${cal(calendarId)}/events/${encodeURIComponent(eventId)}/move`
+    + qs({ destination }), { method: 'POST' });
+}
 function getEvent(calendarId, eventId) {
   return apiFetch(`${CAL_BASE}/calendars/${cal(calendarId)}/events/${encodeURIComponent(eventId)}`);
 }
@@ -124,6 +129,7 @@ module.exports = {
   deleteEvent,
   patchEvent,
   getEvent,
+  moveEvent,
   listTaskLists,
   listTasks,
   insertTask,

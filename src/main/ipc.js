@@ -144,6 +144,7 @@ function init(s) {
     }));
   });
 
+  handle('todos:moveEvent', (eventId) => sync.moveEventToTodoCalendar(eventId));
   handle('todos:addRecurring', (t) => sync.addRecurringTodo(t || {}));
   handle('todos:setDone', (masterId, date, done) => sync.setOccurrenceDone(masterId, date, !!done));
   handle('todos:deleteRecurring', (masterId) => sync.deleteRecurringTodo(masterId));

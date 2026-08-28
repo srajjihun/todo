@@ -6,8 +6,8 @@
   let ctx = null;
   const state = {
     repeatOpen: false, // 반복 할 일 추가 폼
-    dateMode: false,   // false = 전체(그룹) 보기, true = 특정 날짜 보기
-    viewDate: null,    // dateMode일 때 보는 날짜
+    mode: 'all',       // 'all' 전체(그룹) | 'day' 하루 | 'week' 한 주
+    viewDate: null,    // day/week 보기의 기준 날짜
     collapsed: new Set(['completed']),
     confirmDelId: null,
     confirmTimer: null,
@@ -41,11 +41,13 @@
     if (e.target.closest('.td-next')) { shiftDate(1); return; }
     if (e.target.closest('.td-today')) { state.viewDate = ctx.D.todayStr(); render(); return; }
     if (e.target.closest('.td-mode')) {
-      state.dateMode = !state.dateMode;
-      if (state.dateMode && !state.viewDate) state.viewDate = ctx.D.todayStr();
+      state.mode = state.mode === 'all' ? 'day' : state.mode === 'day' ? 'week' : 'all';
+      if (state.mode !== 'all' && !state.viewDate) state.viewDate = ctx.D.todayStr();
       render();
       return;
     }
+    const wd = e.target.closest('.wk-day');
+    if (wd) { state.viewDate = wd.dataset.date; state.mode = 'day'; render(); return; }
     const action = e.target.closest('.grp-action');
     if (action) {
       e.stopPropagation();
@@ -79,8 +81,8 @@
 
   function shiftDate(delta) {
     if (!state.viewDate) state.viewDate = ctx.D.todayStr();
-    state.viewDate = ctx.D.addDays(state.viewDate, delta);
-    if (!state.dateMode) state.dateMode = true;
+    if (state.mode === 'all') state.mode = 'day';
+    state.viewDate = ctx.D.addDays(state.viewDate, state.mode === 'week' ? delta * 7 : delta);
     render();
   }
 
@@ -144,6 +146,7 @@
 
     // 날짜 보기: 그 날짜가 마감인 항목만 (미완료 먼저, 완료 아래)
     const viewDate = state.viewDate || today;
+    const weekDays = D.weekOf(viewDate);
     const dayTasks = merged
       .filter((t) => t.due === viewDate)
       .sort((a, b) => {
@@ -172,19 +175,42 @@
     const total = merged.length;
 
     // 날짜 이동 바 (‹ 날짜 ›) + 전체/날짜 보기 전환
+    const modeLabel = { all: '전체 보기', day: D.formatKoreanDate(viewDate), week: D.weekTitle(weekDays) };
+    const nextMode = { all: '날짜', day: '주', week: '전체' };
     const dateBar = `
-      <div class="td-datebar${state.dateMode ? ' on' : ''}">
-        <button class="td-prev" title="이전 날">‹</button>
-        <span class="td-date">${state.dateMode ? esc(D.formatKoreanDate(viewDate)) : '전체 보기'}</span>
-        <button class="td-next" title="다음 날">›</button>
-        ${state.dateMode && viewDate !== today ? '<button class="td-today" title="오늘로">오늘</button>' : ''}
-        <button class="td-mode" title="${state.dateMode ? '전체 목록 보기' : '날짜별로 보기'}">${state.dateMode ? '전체' : '날짜'}</button>
+      <div class="td-datebar${state.mode !== 'all' ? ' on' : ''}">
+        <button class="td-prev" title="${state.mode === 'week' ? '이전 주' : '이전 날'}">‹</button>
+        <span class="td-date">${esc(modeLabel[state.mode])}</span>
+        <button class="td-next" title="${state.mode === 'week' ? '다음 주' : '다음 날'}">›</button>
+        ${state.mode !== 'all' && viewDate !== today ? '<button class="td-today" title="오늘로">오늘</button>' : ''}
+        <button class="td-mode" title="보기 전환">${nextMode[state.mode]}</button>
       </div>`;
 
-    // 날짜 모드에서는 추가 시 그 날짜를 기본 마감일로
-    const dueValue = keepDue || (state.dateMode ? viewDate : '');
 
-    const body = state.dateMode
+    // 날짜 모드에서는 추가 시 그 날짜를 기본 마감일로
+    const dueValue = keepDue || (state.mode !== 'all' ? viewDate : '');
+
+    // 주 보기: 그 주 7일을 각 날짜의 할 일과 함께 편다
+    const weekList = weekDays.map((ds) => {
+      const items = merged.filter((t) => t.due === ds)
+        .sort((a, b) => (a.status === 'completed' ? 1 : 0) - (b.status === 'completed' ? 1 : 0));
+      const d = D.parseDateStr(ds);
+      const cls = ['wk-day'];
+      if (ds === today) cls.push('today');
+      if (d.getDay() === 0) cls.push('sun');
+      if (d.getDay() === 6) cls.push('sat');
+      const inner = items.length
+        ? items.map((t) => `<div class="wk-ev${t.status === 'completed' ? ' done' : ''}">${t.kind === 'occ' && t.repeating ? '<span class="t-rep">↻</span>' : ''}<span class="ev-title" title="${esc(t.title)}">${esc(t.title)}</span></div>`).join('')
+        : '<div class="wk-empty">—</div>';
+      return `<button class="${cls.join(' ')}" data-date="${ds}">
+          <span class="wk-date">${d.getDate()}<em>${D.WEEKDAYS[d.getDay()]}</em></span>
+          <span class="wk-items">${inner}</span>
+        </button>`;
+    }).join('');
+
+    const body = state.mode === 'week'
+      ? `<div class="wk-list">${weekList}</div>`
+      : state.mode === 'day'
       ? (dayTasks.length
           ? dayTasks.map((t) => taskRow(t, today)).join('')
           : '<div class="empty-hint">이 날짜에 마감인 할 일이 없습니다</div>')
@@ -213,7 +239,7 @@
   }
 
   function repeatForm(esc, viewDate, today) {
-    const start = state.dateMode ? viewDate : today;
+    const start = state.mode !== 'all' ? viewDate : today;
     return `
       <form id="repeat-form" class="add-form">
         <input type="text" id="rep-title" placeholder="반복할 할 일 (예: 헬스)" required>
