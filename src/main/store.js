@@ -57,6 +57,8 @@ const DEFAULTS = {
     pomoShortBreakMin: 5,
     pomoLongBreakMin: 15,
     pomoLongBreakEvery: 4,
+    pomoAutoStartBreak: true,
+    pomoAutoStartFocus: true,
   },
   tokens: { refreshTokenEnc: null, encrypted: false },
   cache: {

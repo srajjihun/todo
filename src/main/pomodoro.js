@@ -150,9 +150,17 @@ function stopTimer() {
 function complete() {
   const finishedPhase = state.phase;
   if (finishedPhase === 'focus') bumpFocusCount();
-  notify(finishedPhase);
   advance(finishedPhase === 'focus');
-  emit();
+
+  // 다음 단계로 자동 이어가기 (설정에서 끌 수 있음)
+  const s = settingsStore.data;
+  const autoNext = state.phase === 'focus'
+    ? s.pomoAutoStartFocus !== false
+    : s.pomoAutoStartBreak !== false;
+
+  notify(finishedPhase, autoNext);
+  if (autoNext) start(); // start() 안에서 emit
+  else emit();
 }
 
 function advance(countCycle) {
@@ -166,15 +174,21 @@ function advance(countCycle) {
   }
 }
 
-function notify(finishedPhase) {
+function notify(finishedPhase, autoNext) {
   if (!Notification.isSupported()) return;
   const focusDone = finishedPhase === 'focus';
   const title = cacheStore.data.focusTaskTitle;
+  const nextMin = Math.round(state.totalMs / 60000); // advance() 이후라 다음 단계 길이
+  const nextName = state.phase === 'focus' ? '집중' : state.phase === 'longBreak' ? '긴 휴식' : '휴식';
+
+  const body = focusDone
+    ? `${title ? `"${title}" · ` : ''}오늘 ${focusCountToday()}번째 집중을 마쳤어요. `
+      + (autoNext ? `${nextMin}분 ${nextName}을 시작합니다.` : '잠시 휴식하세요.')
+    : (autoNext ? `${nextMin}분 집중을 시작합니다.` : '다시 집중할 시간이에요.');
+
   const n = new Notification({
     title: focusDone ? '집중 완료! 🎉' : '휴식 끝!',
-    body: focusDone
-      ? `${title ? `"${title}" · ` : ''}오늘 ${focusCountToday()}번째 집중을 마쳤어요. 잠시 휴식하세요.`
-      : '다시 집중할 시간이에요.',
+    body,
   });
   n.show();
 }

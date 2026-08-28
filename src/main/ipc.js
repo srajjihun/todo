@@ -54,6 +54,8 @@ const SETTABLE_KEYS = {
   pomoShortBreakMin: 'number',
   pomoLongBreakMin: 'number',
   pomoLongBreakEvery: 'number',
+  pomoAutoStartBreak: 'boolean',
+  pomoAutoStartFocus: 'boolean',
 };
 
 function init(s) {

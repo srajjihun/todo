@@ -38,6 +38,8 @@
     } else if (t.matches('#chk-autolaunch')) {
       await ctx.setSettings({ autoLaunch: t.checked });
       ctx.toast(t.checked ? 'Windows 시작 시 자동 실행합니다' : '자동 실행을 껐습니다');
+    } else if (t.matches('.pomo-chk')) {
+      await ctx.setSettings({ [t.dataset.key]: t.checked });
     } else if (t.matches('.pomo-num')) {
       const min = Number(t.min) || 1;
       const max = Number(t.max) || 180;
@@ -149,6 +151,10 @@
           <input type="number" class="pomo-num" data-key="pomoLongBreakMin" min="1" max="180" value="${Number(s.pomoLongBreakMin) || 15}"> <span>분</span></div>
         <div class="set-row"><label>긴 휴식 간격</label>
           <input type="number" class="pomo-num" data-key="pomoLongBreakEvery" min="1" max="12" value="${Number(s.pomoLongBreakEvery) || 4}"> <span>회마다</span></div>
+        <div class="set-row"><label>집중이 끝나면 휴식 자동 시작</label>
+          <input type="checkbox" class="pomo-chk" data-key="pomoAutoStartBreak" ${s.pomoAutoStartBreak !== false ? 'checked' : ''}></div>
+        <div class="set-row"><label>휴식이 끝나면 집중 자동 시작</label>
+          <input type="checkbox" class="pomo-chk" data-key="pomoAutoStartFocus" ${s.pomoAutoStartFocus !== false ? 'checked' : ''}></div>
       </div>
 
       <div class="set-section">
