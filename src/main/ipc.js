@@ -68,7 +68,10 @@ function init(s) {
     const prev = { ...stores.settings.data };
     const clean = {};
     for (const [k, v] of Object.entries(partial || {})) {
-      if (SETTABLE_KEYS[k] && typeof v === SETTABLE_KEYS[k] && (typeof v !== 'number' || Number.isFinite(v))) {
+      if (k === 'visibleCalendarIds') {
+        // null(전체 표시) 또는 캘린더 id 배열
+        if (v === null || (Array.isArray(v) && v.every((x) => typeof x === 'string'))) clean[k] = v;
+      } else if (SETTABLE_KEYS[k] && typeof v === SETTABLE_KEYS[k] && (typeof v !== 'number' || Number.isFinite(v))) {
         clean[k] = v;
       }
     }
@@ -86,6 +89,10 @@ function init(s) {
     }
     if ('todoCalendarId' in clean && prev.todoCalendarId !== next.todoCalendarId) {
       sync.onTodoCalendarChanged();
+    }
+    if ('visibleCalendarIds' in clean
+      && JSON.stringify(prev.visibleCalendarIds) !== JSON.stringify(next.visibleCalendarIds)) {
+      sync.onVisibleCalendarsChanged();
     }
     if (['pomoFocusMin', 'pomoShortBreakMin', 'pomoLongBreakMin', 'pomoLongBreakEvery']
       .some((k) => k in clean && prev[k] !== next[k])) {

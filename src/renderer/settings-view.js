@@ -31,6 +31,17 @@
 
   async function onChange(e) {
     const t = e.target;
+    if (t.matches('.cal-vis')) {
+      const s2 = ctx.getSettings() || {};
+      const all = (calendars || []).map((c) => c.id).filter((id) => id !== s2.todoCalendarId);
+      const cur = new Set(s2.visibleCalendarIds && s2.visibleCalendarIds.length ? s2.visibleCalendarIds : all);
+      if (t.checked) cur.add(t.dataset.id);
+      else cur.delete(t.dataset.id);
+      const next = all.filter((id) => cur.has(id));
+      await ctx.setSettings({ visibleCalendarIds: next });
+      ctx.toast(t.checked ? '캘린더를 표시합니다' : '캘린더를 숨겼습니다');
+      return;
+    }
     if (t.matches('#sel-todocal')) {
       await ctx.setSettings({ todoCalendarId: t.value });
       ctx.toast(t.value ? '할 일 캘린더를 설정했습니다' : '할 일 캘린더 연결을 해제했습니다');
@@ -154,6 +165,18 @@
           <select id="sel-tasklist">${listOptions}</select>
           <button class="icon-btn" id="btn-refresh-lists" title="목록 새로고침">⟳</button></div>` : ''}
       </div>
+
+      ${loggedIn && (calendars || []).length ? `
+      <div class="set-section">
+        <h3>캘린더 탭에 표시</h3>
+        ${calendars.filter((c) => c.id !== s.todoCalendarId).map((c) => {
+          const all = calendars.map((x) => x.id).filter((id) => id !== s.todoCalendarId);
+          const vis = s.visibleCalendarIds && s.visibleCalendarIds.length ? s.visibleCalendarIds : all;
+          return `<div class="set-row"><label>${esc(c.title)}</label>
+            <input type="checkbox" class="cal-vis" data-id="${esc(c.id)}" ${vis.includes(c.id) ? 'checked' : ''}></div>`;
+        }).join('')}
+        <p class="set-note">체크를 끄면 그 캘린더 일정은 캘린더 탭에서 사라지고 동기화도 하지 않습니다.</p>
+      </div>` : ''}
 
       <div class="set-section">
         <h3>동기화</h3>

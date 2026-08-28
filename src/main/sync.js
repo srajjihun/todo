@@ -756,6 +756,21 @@ async function moveEventToTodoCalendar(eventId) {
   return { ok: true, moved: masterId };
 }
 
+// 표시할 캘린더가 바뀌면, 더 이상 동기화하지 않는 캘린더의 일정을 캐시에서 걷어낸다
+function onVisibleCalendarsChanged() {
+  const cache = stores.cache.data;
+  const keep = new Set(syncedCalendarIds());
+  for (const [id, ev] of Object.entries(cache.events)) {
+    if (!keep.has(ev.calendarId)) delete cache.events[id];
+  }
+  for (const id of Object.keys(cache.eventsSyncTokens || {})) {
+    if (!keep.has(id)) delete cache.eventsSyncTokens[id];
+  }
+  stores.cache.save();
+  pushState();
+  return syncNow('visible-calendars-changed');
+}
+
 // 할 일 캘린더가 바뀌면 관련 캐시를 새로 만든다
 function onTodoCalendarChanged() {
   stores.cache.data.todoMasters = {};
@@ -799,4 +814,5 @@ module.exports = {
   setOccurrenceDone,
   deleteRecurringTodo,
   onTodoCalendarChanged,
+  onVisibleCalendarsChanged,
 };
