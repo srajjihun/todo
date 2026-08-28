@@ -1,3 +1,8 @@
 node_modules/
 *.log
 dist/
+data/
+run.log
+env.log
+diag.json
+boot-fallback.log

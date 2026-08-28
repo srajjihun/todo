@@ -9,6 +9,36 @@ const miniWindow = require('./mini-window');
 const tray = require('./tray');
 const ipc = require('./ipc');
 
+// [중요] 데이터 저장 위치를 앱 폴더로 고정한다.
+// 이 PC의 보안 프로그램이 AppData(사용자 프로필)를 프로세스별로 가상화해서,
+// 탐색기에서 실행한 앱과 터미널에서 실행한 앱이 "같은 경로의 다른 파일"을 보는
+// 현상이 실측됐다(설정이 제멋대로 과거로 돌아가던 원인). 앱 폴더는 가상화되지
+// 않음이 확인되어 여기로 옮긴다. 잠금/캐시/로그가 전부 이 아래로 온다.
+const APP_DATA_DIR = require('path').join(__dirname, '..', '..', 'data');
+try { require('fs').mkdirSync(APP_DATA_DIR, { recursive: true }); } catch { /* 무시 */ }
+app.setPath('userData', APP_DATA_DIR);
+
+// 한 번만: 예전 위치(Roaming)의 데이터가 있고 새 위치가 비어 있으면 옮겨온다
+try {
+  const fsm = require('fs');
+  const pm = require('path');
+  const legacy = pm.join(process.env.APPDATA || '', 'desk-widget');
+  if (!fsm.existsSync(pm.join(APP_DATA_DIR, 'settings.json'))
+    && fsm.existsSync(pm.join(legacy, 'settings.json'))) {
+    for (const name of ['settings.json', 'tokens.json', 'cache.json', 'pending.json']) {
+      const src = pm.join(legacy, name);
+      if (fsm.existsSync(src)) fsm.copyFileSync(src, pm.join(APP_DATA_DIR, name));
+    }
+    fsm.appendFileSync(pm.join(APP_DATA_DIR, 'sync.log'),
+      new Date().toISOString() + '  예전 위치(' + legacy + ')에서 데이터 이전 완료' + String.fromCharCode(10));
+  }
+} catch (e) {
+  try {
+    require('fs').appendFileSync(pm.join(APP_DATA_DIR, 'sync.log'),
+      new Date().toISOString() + '  !! 데이터 이전 실패: ' + e.message + String.fromCharCode(10));
+  } catch { /* 무시 */ }
+}
+
 // Windows 토스트 알림은 셸에 등록된 AppUserModelId가 필요 — 개발 실행(electron .)에서는
 // 커스텀 AUMID가 등록돼 있지 않아 알림이 조용히 사라지므로 실행 파일 경로를 쓴다
 app.setAppUserModelId(app.isPackaged ? 'com.siraj.desk-widget' : process.execPath);
