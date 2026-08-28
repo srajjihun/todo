@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>개인정보처리방침 — 데스크톱 위젯</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+    line-height: 1.7; max-width: 720px; margin: 0 auto; padding: 48px 24px;
+    background: #ffffff; color: #1b1d23;
+  }
+  @media (prefers-color-scheme: dark) { body { background: #16181d; color: #e8e8ec; } }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  .updated { color: #6b7280; margin: 0 0 32px; font-size: 14px; }
+  h2 { font-size: 18px; margin: 30px 0 8px; }
+  ul { padding-left: 20px; }
+  li { margin: 6px 0; }
+  code { background: #8881; padding: 1px 5px; border-radius: 4px; font-size: 90%; }
+  a { color: #3b6fd4; }
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #8883; color: #6b7280; font-size: 14px; }
+</style>
+</head>
+<body>
+  <h1>개인정보처리방침</h1>
+  <p class="updated">데스크톱 위젯 (캘린더 · 할 일 · 포커스) · 최종 수정일: 2026년 8월 28일</p>
+
+  <h2>1. 요약</h2>
+  <p>
+    이 앱은 사용자의 PC에서만 실행되는 데스크톱 프로그램입니다. 개발자가 운영하는 서버가 없으며,
+    사용자의 데이터를 수집하거나 전송받지 않습니다. 모든 데이터는 사용자의 컴퓨터와
+    사용자 본인의 Google 계정 사이에서만 오갑니다.
+  </p>
+
+  <h2>2. 접근하는 정보</h2>
+  <p>사용자가 Google 로그인에 동의한 경우에만 아래 정보에 접근합니다.</p>
+  <ul>
+    <li><strong>Google 캘린더 일정</strong> (<code>calendar.events</code>) — 일정을 위젯에 표시하고, 위젯에서 만든 일정을 캘린더에 추가하거나 삭제하기 위해 사용합니다.</li>
+    <li><strong>Google Tasks 할 일</strong> (<code>tasks</code>) — 할 일을 위젯에 표시하고, 추가 · 완료 · 삭제를 반영하기 위해 사용합니다.</li>
+  </ul>
+  <p>이메일 본문, 연락처, 파일 등 그 밖의 어떤 정보에도 접근하지 않습니다.</p>
+
+  <h2>3. 정보의 저장 위치</h2>
+  <ul>
+    <li>일정 · 할 일의 사본과 앱 설정은 사용자 PC의 <code>%APPDATA%\desk-widget\</code> 폴더에만 저장됩니다.</li>
+    <li>Google 로그인 토큰은 Windows의 자격 증명 보호 기능(DPAPI)으로 암호화하여 같은 위치에 저장됩니다.</li>
+    <li>이 정보는 사용자의 컴퓨터를 떠나지 않으며, 개발자를 포함한 제3자에게 전송되지 않습니다.</li>
+  </ul>
+
+  <h2>4. 제3자 제공 및 광고</h2>
+  <p>
+    수집하는 정보가 없으므로 제3자에게 판매 · 제공 · 공유하는 정보도 없습니다.
+    광고, 분석 도구, 추적 기술을 사용하지 않습니다.
+    앱이 통신하는 유일한 외부 서비스는 사용자 본인의 계정에 접근하기 위한 Google API입니다.
+  </p>
+
+  <h2>5. 정보의 삭제</h2>
+  <ul>
+    <li>앱 설정 화면에서 <strong>로그아웃</strong>하면 저장된 로그인 토큰이 즉시 삭제됩니다.</li>
+    <li><code>%APPDATA%\desk-widget\</code> 폴더를 삭제하면 로컬에 저장된 모든 데이터가 제거됩니다.</li>
+    <li><a href="https://myaccount.google.com/connections">Google 계정 연결 관리</a>에서 이 앱의 접근 권한을 언제든지 철회할 수 있습니다.</li>
+  </ul>
+
+  <h2>6. Google 사용자 데이터 정책</h2>
+  <p>
+    이 앱의 Google 사용자 데이터 사용은 제한적 사용 요건(Limited Use)을 포함한
+    <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API 서비스 사용자 데이터 정책</a>을 준수합니다.
+    데이터는 위젯에 기능을 제공하는 목적으로만 사용됩니다.
+  </p>
+
+  <h2>7. 문의</h2>
+  <p>
+    개인정보 처리에 관한 문의는 <a href="mailto:sraj.jihun@gmail.com">sraj.jihun@gmail.com</a> 으로 연락해 주세요.
+  </p>
+
+  <footer>
+    <a href="index.html">← 앱 소개로 돌아가기</a>
+  </footer>
+</body>
+</html>
