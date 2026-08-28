@@ -15,6 +15,14 @@ app.setAppUserModelId(app.isPackaged ? 'com.siraj.desk-widget' : process.execPat
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
+  // 이미 실행 중이라 이 프로세스는 종료된다. 아무 흔적이 없으면
+  // "실행했는데 반응이 없다"는 상황을 나중에 확인할 수 없으므로 로그를 남긴다.
+  try {
+    const fsx = require('fs');
+    const px = require('path');
+    fsx.appendFileSync(px.join(app.getPath('userData'), 'sync.log'),
+      new Date().toISOString() + '  실행 시도 — 이미 다른 창이 떠 있어 기존 창을 사용합니다' + '\n');
+  } catch { /* 무시 */ }
   app.quit();
 } else {
   let quitting = false;
@@ -49,7 +57,7 @@ if (!gotLock) {
     sync.init(stores, {
       onState: (state) => ipc.broadcast('push:state-changed', state),
       onStatus: (status) => ipc.broadcast('push:sync-status', status),
-    });
+    }, { userDataDir: app.getPath('userData') });
 
     pomodoro.init(stores, {
       onTick: (t) => ipc.broadcast('push:pomo-tick', t),

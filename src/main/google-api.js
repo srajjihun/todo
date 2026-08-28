@@ -2,6 +2,8 @@
 // Google Calendar / Tasks REST 래퍼 (Node 내장 fetch 사용)
 const auth = require('./auth');
 
+const REQUEST_TIMEOUT_MS = 20000; // 응답이 멈춘 요청이 동기화를 영원히 붙잡지 않도록
+
 const CAL_BASE = 'https://www.googleapis.com/calendar/v3';
 const TASKS_BASE = 'https://tasks.googleapis.com/tasks/v1';
 
@@ -17,6 +19,7 @@ class ApiError extends Error {
 // 네트워크 단절/서버 오류/쿼터 → 나중에 재시도 가능
 function isRetryable(e) {
   if (e instanceof auth.AuthRequiredError) return false;
+  if (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) return true;
   if (e instanceof ApiError) {
     if (e.status >= 500 || e.status === 429 || e.status === 408) return true;
     // 구글은 레이트리밋/쿼터 초과를 403으로도 반환한다 — 영구 실패로 오인해 폐기하면 안 됨
@@ -30,11 +33,23 @@ async function apiFetch(url, { method = 'GET', body, retryOn401 = true, headers:
   const token = await auth.getAccessToken();
   const headers = { Authorization: `Bearer ${token}`, ...(extra || {}) };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res;
+  try {
+    res = await fetch(url, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (e) {
+    // 타임아웃/중단은 네트워크 오류와 같게 다뤄 재시도 대상으로 만든다
+    if (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) {
+      const err = new Error('구글 응답이 없어 요청을 중단했습니다(20초 초과)');
+      err.name = 'TimeoutError';
+      throw err;
+    }
+    throw e;
+  }
   if (res.status === 401 && retryOn401) {
     auth.invalidateAccessToken();
     return apiFetch(url, { method, body, retryOn401: false, headers: extra });

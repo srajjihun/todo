@@ -192,6 +192,8 @@
     bindHeader();
     await initData();
     subscribe();
+    // 구독하기 전에 끝난 동기화의 푸시는 유실된다. 구독 직후 한 번 더 읽어 맞춘다.
+    await initData();
     renderPin();
     renderStatus();
     showView('calendar');

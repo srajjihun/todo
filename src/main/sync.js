@@ -2,6 +2,8 @@
 // 동기화 엔진: Google이 원본(source of truth), 로컬 캐시는 표시/오프라인용.
 // 쓰기는 낙관적 반영 후 즉시 API 푸시, 실패/오프라인 시 pending 큐에 보관했다가 재생.
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const auth = require('./auth');
 const api = require('./google-api');
 const logic = require('./sync-logic');
@@ -14,17 +16,37 @@ let stores = null; // { settings, cache, pending }
 let onState = () => {};
 let onStatus = () => {};
 let syncing = null;
+let syncingSince = 0;         // 진행 중인 동기화가 시작된 시각
+const SYNC_STUCK_MS = 90000;  // 이보다 오래 끌면 죽은 것으로 보고 새로 시작한다
 let timer = null;
 let retryTimer = null;
 let lastStatus = { phase: 'idle', lastSyncAt: null, pendingCount: 0, message: null };
+
+// 무슨 일이 있었는지 나중에 확인할 수 있도록 파일에 남긴다 (userData/sync.log)
+let logPath = null;
+function logLine(msg) {
+  const line = new Date().toISOString() + '  ' + msg;
+  console.log('[sync] ' + msg);
+  try {
+    if (!logPath) return;
+    fs.appendFileSync(logPath, line + '\n');
+    // 너무 커지면 앞부분을 잘라낸다
+    if (fs.statSync(logPath).size > 200000) {
+      const keep = fs.readFileSync(logPath, 'utf8').split('\n').slice(-500).join('\n');
+      fs.writeFileSync(logPath, keep);
+    }
+  } catch { /* 로그 실패는 무시 */ }
+}
 
 // 직접 경로로 전송 중인 insert: tempId -> Promise<realId|null>
 const inFlightInserts = new Map();
 // insert가 서버에 도달하기 전에 사용자가 삭제한 임시 id — 완료 시 재추가 방지
 const tombstoned = new Set();
 
-function init(s, callbacks) {
+function init(s, callbacks, opts) {
   stores = s;
+  if (opts && opts.userDataDir) logPath = path.join(opts.userDataDir, 'sync.log');
+  logLine('앱 시작 · 로그인=' + auth.isLoggedIn());
   if (callbacks.onState) onState = callbacks.onState;
   if (callbacks.onStatus) onStatus = callbacks.onStatus;
   migrateCache();
@@ -103,14 +125,28 @@ function syncNow(reason) {
     setStatus({ phase: 'auth-required', message: null });
     return Promise.resolve();
   }
-  if (syncing) return syncing;
-  syncing = doSync(reason)
+  if (syncing) {
+    // 응답이 멈춘 동기화가 이후 요청을 영원히 막지 않게 한다
+    if (Date.now() - syncingSince > SYNC_STUCK_MS) {
+      logLine('이전 동기화가 ' + Math.round((Date.now() - syncingSince) / 1000)
+        + '초째 끝나지 않아 버리고 새로 시작합니다');
+      syncing = null;
+    } else {
+      logLine('동기화 요청 무시 — 이미 진행 중 (' + reason + ')');
+      return syncing;
+    }
+  }
+  syncingSince = Date.now();
+  const run = doSync(reason)
     .catch((e) => handleSyncError(e))
-    .finally(() => { syncing = null; });
-  return syncing;
+    .finally(() => { if (syncing === run) syncing = null; });
+  syncing = run;
+  return run;
 }
 
-async function doSync() {
+async function doSync(reason) {
+  const t0 = Date.now();
+  logLine('동기화 시작 (' + (reason || '?') + ')');
   setStatus({ phase: 'syncing', message: null });
   const warnings = await flushPending();
   await pullCalendars();
@@ -120,13 +156,20 @@ async function doSync() {
   stores.cache.update({ lastSyncAt: new Date().toISOString() });
   pushState();
   setStatus({ phase: 'idle', message: warnings.length ? warnings[0] : null });
+  logLine('동기화 완료 (' + (Date.now() - t0) + 'ms) · 일정 '
+    + Object.keys(stores.cache.data.events).length
+    + ' · 반복마스터 ' + Object.keys(stores.cache.data.todoMasters || {}).length
+    + ' · Tasks ' + Object.keys(stores.cache.data.tasks).length);
 }
 
 function handleSyncError(e) {
+  logLine('동기화 실패: ' + (e && e.name) + ' ' + (e && e.message)
+    + (e && e.status ? ' status=' + e.status : ''));
   if (e instanceof auth.AuthRequiredError) {
     setStatus({ phase: 'auth-required', message: e.message });
   } else if (api.isRetryable(e)) {
     setStatus({ phase: 'offline', message: null });
+    scheduleRetry(); // 자동 주기가 최대 12시간이라, 실패하면 곧 다시 시도해야 한다
   } else {
     console.error('[sync] 동기화 오류:', e);
     setStatus({ phase: 'error', message: e.message });
