@@ -38,6 +38,8 @@
       render();
       return;
     }
+    if (e.target.closest('.day-prev')) { selectDate(ctx.D.addDays(state.selected, -1)); return; }
+    if (e.target.closest('.day-next')) { selectDate(ctx.D.addDays(state.selected, 1)); return; }
     if (e.target.closest('.nav-up')) { moveMonth(-1); return; }
     if (e.target.closest('.nav-down')) { moveMonth(1); return; }
     if (e.target.closest('.nav-today')) {
@@ -106,6 +108,15 @@
     state.month = d.getMonth();
     const res = await ctx.call(ctx.api.addEvent({ title, date, allDay, startTime, endTime }));
     if (res) ctx.toast('일정을 추가했습니다');
+    render();
+  }
+
+  // 선택 날짜를 옮기고, 달이 바뀌면 그리드도 따라간다
+  function selectDate(dateStr) {
+    state.selected = dateStr;
+    const d = ctx.D.parseDateStr(dateStr);
+    state.year = d.getFullYear();
+    state.month = d.getMonth();
     render();
   }
 
@@ -185,7 +196,11 @@
       </form>` : '';
 
     root.innerHTML = `
-      <div class="cal-selected">${D.formatKoreanDate(state.selected)}</div>
+      <div class="cal-selected">
+        <button class="day-prev" title="이전 날">‹</button>
+        <span class="cal-selected-text">${D.formatKoreanDate(state.selected)}</span>
+        <button class="day-next" title="다음 날">›</button>
+      </div>
       <div class="cal-nav">
         <span class="cal-title">${D.monthTitle(state.year, state.month)}</span>
         <button class="nav-today" title="오늘로 이동">오늘</button>

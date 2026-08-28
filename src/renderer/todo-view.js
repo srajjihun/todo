@@ -5,6 +5,8 @@
   let root = null;
   let ctx = null;
   const state = {
+    dateMode: false,   // false = 전체(그룹) 보기, true = 특정 날짜 보기
+    viewDate: null,    // dateMode일 때 보는 날짜
     collapsed: new Set(['completed']),
     confirmDelId: null,
     confirmTimer: null,
@@ -27,6 +29,15 @@
   }
 
   function onClick(e) {
+    if (e.target.closest('.td-prev')) { shiftDate(-1); return; }
+    if (e.target.closest('.td-next')) { shiftDate(1); return; }
+    if (e.target.closest('.td-today')) { state.viewDate = ctx.D.todayStr(); render(); return; }
+    if (e.target.closest('.td-mode')) {
+      state.dateMode = !state.dateMode;
+      if (state.dateMode && !state.viewDate) state.viewDate = ctx.D.todayStr();
+      render();
+      return;
+    }
     const action = e.target.closest('.grp-action');
     if (action) {
       e.stopPropagation();
@@ -55,6 +66,13 @@
         render();
       }
     }
+  }
+
+  function shiftDate(delta) {
+    if (!state.viewDate) state.viewDate = ctx.D.todayStr();
+    state.viewDate = ctx.D.addDays(state.viewDate, delta);
+    if (!state.dateMode) state.dateMode = true;
+    render();
   }
 
   function onChange(e) {
@@ -97,6 +115,15 @@
     const keepDue = prevDue ? prevDue.value : '';
     const hadFocus = prevTitle && document.activeElement === prevTitle;
 
+    // 날짜 보기: 그 날짜가 마감인 항목만 (미완료 먼저, 완료 아래)
+    const viewDate = state.viewDate || today;
+    const dayTasks = (data.tasks || [])
+      .filter((t) => t.due === viewDate)
+      .sort((a, b) => {
+        if ((a.status === 'completed') !== (b.status === 'completed')) return a.status === 'completed' ? 1 : -1;
+        return (a.position || '').localeCompare(b.position || '');
+      });
+
     const sections = GROUPS.map((g) => {
       const items = groups[g.key];
       if (!items || items.length === 0) return '';
@@ -116,15 +143,36 @@
     }).join('');
 
     const total = (data.tasks || []).length;
+
+    // 날짜 이동 바 (‹ 날짜 ›) + 전체/날짜 보기 전환
+    const dateBar = `
+      <div class="td-datebar${state.dateMode ? ' on' : ''}">
+        <button class="td-prev" title="이전 날">‹</button>
+        <span class="td-date">${state.dateMode ? esc(D.formatKoreanDate(viewDate)) : '전체 보기'}</span>
+        <button class="td-next" title="다음 날">›</button>
+        ${state.dateMode && viewDate !== today ? '<button class="td-today" title="오늘로">오늘</button>' : ''}
+        <button class="td-mode" title="${state.dateMode ? '전체 목록 보기' : '날짜별로 보기'}">${state.dateMode ? '전체' : '날짜'}</button>
+      </div>`;
+
+    // 날짜 모드에서는 추가 시 그 날짜를 기본 마감일로
+    const dueValue = keepDue || (state.dateMode ? viewDate : '');
+
+    const body = state.dateMode
+      ? (dayTasks.length
+          ? dayTasks.map((t) => taskRow(t, today)).join('')
+          : '<div class="empty-hint">이 날짜에 마감인 할 일이 없습니다</div>')
+      : (sections || (total === 0 ? '<div class="empty-hint">할 일이 없습니다 🎉</div>' : ''));
+
     root.innerHTML = `
+      ${dateBar}
       <form id="task-form" class="task-add">
         <span class="plus">＋</span>
         <input type="text" id="task-title" placeholder="할일 추가" value="${esc(keepTitle)}" autocomplete="off">
-        <input type="date" id="task-due" title="마감일 (선택)" value="${esc(keepDue)}">
+        <input type="date" id="task-due" title="마감일 (선택)" value="${esc(dueValue)}">
         <!-- 숨김 submit 버튼: 필드가 2개라 Enter의 암시적 제출에 반드시 필요 -->
         <button type="submit" hidden tabindex="-1" aria-hidden="true"></button>
       </form>
-      ${sections || (total === 0 ? '<div class="empty-hint">할 일이 없습니다 🎉</div>' : '')}`;
+      ${body}`;
 
     if (hadFocus) {
       const t = root.querySelector('#task-title');
