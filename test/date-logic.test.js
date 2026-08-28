@@ -68,3 +68,19 @@ test('diffDays / addDays', () => {
   assert.equal(D.diffDays('2026-09-01', '2026-08-28'), 4);
   assert.equal(D.addDays('2026-08-31', 1), '2026-09-01');
 });
+
+test('weekOf: 일요일 시작 7일, 월 경계를 넘어도 이어진다', () => {
+  const w = D.weekOf('2026-09-01'); // 화요일
+  assert.equal(w.length, 7);
+  assert.equal(w[0], '2026-08-30'); // 일요일
+  assert.equal(w[6], '2026-09-05'); // 토요일
+  assert.ok(w.includes('2026-09-01'));
+});
+
+test('weekOf: 일요일을 주면 그 날이 첫날', () => {
+  assert.equal(D.weekOf('2026-08-30')[0], '2026-08-30');
+});
+
+test('weekTitle', () => {
+  assert.equal(D.weekTitle(D.weekOf('2026-09-01')), '8월 30일 – 9월 5일');
+});

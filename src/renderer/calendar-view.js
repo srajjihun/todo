@@ -9,6 +9,7 @@
     year: 0,
     month: 0, // 0-based
     selected: null,
+    weekMode: false,   // 월 달력 / 주별 보기
     formOpen: false,
     confirmDelId: null,
     confirmTimer: null,
@@ -38,8 +39,14 @@
       render();
       return;
     }
-    if (e.target.closest('.day-prev')) { selectDate(ctx.D.addDays(state.selected, -1)); return; }
-    if (e.target.closest('.day-next')) { selectDate(ctx.D.addDays(state.selected, 1)); return; }
+    if (e.target.closest('.view-toggle')) {
+      state.weekMode = !state.weekMode;
+      render();
+      return;
+    }
+    const step = state.weekMode ? 7 : 1;
+    if (e.target.closest('.day-prev')) { selectDate(ctx.D.addDays(state.selected, -step)); return; }
+    if (e.target.closest('.day-next')) { selectDate(ctx.D.addDays(state.selected, step)); return; }
     if (e.target.closest('.nav-up')) { moveMonth(-1); return; }
     if (e.target.closest('.nav-down')) { moveMonth(1); return; }
     if (e.target.closest('.nav-today')) {
@@ -149,6 +156,7 @@
     const today = D.todayStr();
     const saved = captureFormValues();
 
+    const weekDays = D.weekOf(state.selected);
     const cells = D.buildMonthGrid(state.year, state.month).map((c) => {
       const cls = ['cal-cell'];
       if (c.otherMonth) cls.push('other');
@@ -195,20 +203,42 @@
         </div>
       </form>` : '';
 
+    // 주별 보기: 이번 주 7일을 각 날짜의 일정과 함께 세로로 편다
+    const weekList = weekDays.map((ds) => {
+      const list = buckets[ds] || [];
+      const d = D.parseDateStr(ds);
+      const cls = ['wk-day'];
+      if (ds === today) cls.push('today');
+      if (ds === state.selected) cls.push('selected');
+      if (d.getDay() === 0) cls.push('sun');
+      if (d.getDay() === 6) cls.push('sat');
+      const items = list.length
+        ? list.map((ev) => `<div class="wk-ev">${ev.allDay
+            ? '<span class="ev-time allday">종일</span>'
+            : `<span class="ev-time">${esc(ev.startTime || '')}</span>`}<span class="ev-title" title="${esc(ev.title)}">${esc(ev.title)}</span></div>`).join('')
+        : '<div class="wk-empty">—</div>';
+      return `<button class="${cls.join(' ')}" data-date="${ds}">
+          <span class="wk-date">${d.getDate()}<em>${D.WEEKDAYS[d.getDay()]}</em></span>
+          <span class="wk-items">${items}</span>
+        </button>`;
+    }).join('');
+
     root.innerHTML = `
       <div class="cal-selected">
-        <button class="day-prev" title="이전 날">‹</button>
-        <span class="cal-selected-text">${D.formatKoreanDate(state.selected)}</span>
-        <button class="day-next" title="다음 날">›</button>
+        <button class="day-prev" title="${state.weekMode ? '이전 주' : '이전 날'}">‹</button>
+        <span class="cal-selected-text">${state.weekMode ? esc(D.weekTitle(weekDays)) : D.formatKoreanDate(state.selected)}</span>
+        <button class="day-next" title="${state.weekMode ? '다음 주' : '다음 날'}">›</button>
       </div>
       <div class="cal-nav">
         <span class="cal-title">${D.monthTitle(state.year, state.month)}</span>
+        <button class="view-toggle${state.weekMode ? ' on' : ''}" title="월/주 보기 전환">${state.weekMode ? '월' : '주'}</button>
         <button class="nav-today" title="오늘로 이동">오늘</button>
         <button class="nav-up" title="이전 달">▲</button>
         <button class="nav-down" title="다음 달">▼</button>
       </div>
+      ${state.weekMode ? `<div class="wk-list">${weekList}</div>` : `
       <div class="cal-weekdays">${D.WEEKDAYS.map((w) => `<span>${w}</span>`).join('')}</div>
-      <div class="cal-grid">${cells}</div>
+      <div class="cal-grid">${cells}</div>`}
       <div class="day-section">
         <div class="day-head">
           <span class="label">${D.formatShortDate(state.selected)} 일정</span>

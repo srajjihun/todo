@@ -54,6 +54,23 @@
     return cells;
   }
 
+  // 그 날짜가 속한 주(일요일 시작)의 7일
+  function weekOf(dateStr) {
+    const d = parseDateStr(dateStr);
+    const sun = new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
+    const out = [];
+    for (let i = 0; i < 7; i++) {
+      const x = new Date(sun.getFullYear(), sun.getMonth(), sun.getDate() + i);
+      out.push(toDateStr(x));
+    }
+    return out;
+  }
+
+  // '8월 30일 – 9월 5일'
+  function weekTitle(days) {
+    return formatShortDate(days[0]) + ' – ' + formatShortDate(days[6]);
+  }
+
   // 이벤트를 날짜별로 버킷팅. 종일 다일(多日) 이벤트는 [startDate, endDate) 각 날짜에 표시.
   function bucketEventsByDay(events) {
     const map = {};
@@ -135,6 +152,8 @@
     formatShortDate,
     monthTitle,
     buildMonthGrid,
+    weekOf,
+    weekTitle,
     bucketEventsByDay,
     sortDayEvents,
     groupTasks,
