@@ -45,7 +45,11 @@ function create(store, opts) {
     maxWidth: MAX_WIDTH,
     maxHeight: MAX_HEIGHT,
     frame: false,
-    transparent: true,
+    // 투명 창은 Electron 제약상 크기 조절이 불가능하다.
+    // 대신 불투명 배경 + Windows 11이 자동으로 둥글려주는 모서리를 쓴다.
+    transparent: false,
+    backgroundColor: '#1b1d23',
+    roundedCorners: true,
     resizable: true,
     skipTaskbar: true,
     alwaysOnTop: !!settingsStore.data.pinned,

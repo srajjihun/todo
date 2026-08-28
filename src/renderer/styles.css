@@ -1,6 +1,6 @@
 /* 다크 위젯 테마 — 투명 창 위에 둥근 패널을 직접 그린다 */
 :root {
-  --bg: rgba(27, 29, 35, 0.97);
+  --bg: #1b1d23;
   --bg-raise: #23262e;
   --bg-hover: #2b2f39;
   --border: rgba(255, 255, 255, 0.08);
@@ -17,7 +17,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
-  background: transparent;
+  background: var(--bg);
   height: 100%;
   overflow: hidden;
   font-family: "Segoe UI Variable", "Segoe UI", "Malgun Gothic", sans-serif;
@@ -32,7 +32,7 @@ html, body {
   height: 100vh;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  /* 모서리 둥글리기는 Windows 11이 창 단위로 처리한다 (roundedCorners) */
   overflow: hidden;
 }
 
