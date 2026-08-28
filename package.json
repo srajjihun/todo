@@ -1,0 +1,15 @@
+{
+  "name": "desk-widget",
+  "version": "0.1.0",
+  "description": "바탕화면 캘린더 + 할 일 위젯 (Google Calendar/Tasks 동기화)",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test"
+  },
+  "author": "Siraj",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^38.0.0"
+  }
+}
