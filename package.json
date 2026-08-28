@@ -5,11 +5,49 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test"
+    "test": "node --test",
+    "dist": "electron-builder --win"
   },
   "author": "Siraj",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^38.0.0"
+    "electron": "^38.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.siraj.desk-widget",
+    "productName": "Desk Widget",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "SETUP.md",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "데스크톱 위젯",
+      "installerLanguages": [
+        "ko-KR"
+      ],
+      "language": "1042"
+    }
   }
 }

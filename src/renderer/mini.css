@@ -1,0 +1,145 @@
+/* 포커스 미니 카드 — 참고 이미지처럼 밝은 라운드 카드, 우측 여백 없이 내용에 딱 맞춤 */
+:root {
+  --card: #fbfbfd;
+  --border: rgba(0, 0, 0, 0.08);
+  --text: #17181c;
+  --text-dim: #8a8d96;
+  --track: #e6e7eb;
+  --accent: #4f76f6;
+  --green: #34c07a;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: transparent;
+  height: 100%;
+  overflow: hidden;
+  font-family: "Segoe UI Variable", "Segoe UI", "Malgun Gothic", sans-serif;
+  color: var(--text);
+  user-select: none;
+  cursor: default;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  /* 우측 패딩을 좌측보다 작게 — 오른쪽에 빈 여백이 남지 않도록 */
+  padding: 0 12px 0 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
+  -webkit-app-region: drag;
+}
+
+/* ---- 좌측 원형 버튼 ---- */
+.ring {
+  position: relative;
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+.ring-svg { display: block; }
+.ring .track { stroke: var(--track); }
+.ring .bar {
+  stroke: var(--accent);
+  transition: stroke-dashoffset 0.4s linear;
+}
+.ring.break .bar { stroke: var(--green); }
+
+.glyph {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+.ring.break .glyph { color: var(--green); }
+/* 재생 삼각형 */
+.glyph.play::before {
+  content: '';
+  border-style: solid;
+  border-width: 8px 0 8px 13px;
+  border-color: transparent transparent transparent currentColor;
+  margin-left: 3px;
+}
+/* 일시정지 막대 두 개 */
+.glyph.pause::before,
+.glyph.pause::after {
+  content: '';
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background: currentColor;
+}
+.glyph.pause::before { margin-right: 4px; }
+
+/* ---- 우측 텍스트 ---- */
+.info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+}
+.label-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.label {
+  color: var(--text-dim);
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chev { color: var(--text-dim); font-size: 12.5px; flex: 0 0 auto; }
+.time {
+  font-size: 27px;
+  font-weight: 350;
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+/* ---- 호버 시에만 보이는 핀/닫기 (레이아웃 차지 안 함) ---- */
+.tools {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  display: flex;
+  gap: 1px;
+  opacity: 0;
+  transition: opacity 0.12s;
+  -webkit-app-region: no-drag;
+}
+.card:hover .tools { opacity: 1; }
+.tool {
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: #b0b3bb;
+  border-radius: 5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.tool:hover { background: #0000000d; color: #5b5e66; }
+.tool.active { color: var(--accent); opacity: 1; }
+.tools:has(.tool.active) { opacity: 1; }

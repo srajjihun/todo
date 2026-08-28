@@ -56,6 +56,13 @@ function bumpFocusCount() {
   cacheStore.update({ pomoDate: today, pomoCount: count });
 }
 
+// 미니 창/포커스 탭에 표시할 문구: 집중 단계면 선택한 할 일 이름, 아니면 휴식 표시
+function currentLabel() {
+  if (state.phase === 'shortBreak') return '휴식';
+  if (state.phase === 'longBreak') return '긴 휴식';
+  return cacheStore.data.focusTaskTitle || '집중';
+}
+
 function getState() {
   const remainingMs = state.running ? Math.max(0, state.endsAt - Date.now()) : state.remainingMs;
   return {
@@ -64,7 +71,20 @@ function getState() {
     remainingMs,
     totalMs: state.totalMs,
     focusCountToday: focusCountToday(),
+    taskId: cacheStore.data.focusTaskId || null,
+    taskTitle: cacheStore.data.focusTaskTitle || null,
+    label: currentLabel(),
   };
+}
+
+// 집중 대상 할 일 지정 (null이면 해제)
+function setFocusTask(task) {
+  cacheStore.update({
+    focusTaskId: task ? task.id : null,
+    focusTaskTitle: task ? task.title : null,
+  });
+  emit();
+  return getState();
 }
 
 function emit() { onTick(getState()); }
@@ -149,10 +169,11 @@ function advance(countCycle) {
 function notify(finishedPhase) {
   if (!Notification.isSupported()) return;
   const focusDone = finishedPhase === 'focus';
+  const title = cacheStore.data.focusTaskTitle;
   const n = new Notification({
     title: focusDone ? '집중 완료! 🎉' : '휴식 끝!',
     body: focusDone
-      ? `오늘 ${focusCountToday()}번째 집중을 마쳤어요. 잠시 휴식하세요.`
+      ? `${title ? `"${title}" · ` : ''}오늘 ${focusCountToday()}번째 집중을 마쳤어요. 잠시 휴식하세요.`
       : '다시 집중할 시간이에요.',
   });
   n.show();
@@ -166,4 +187,4 @@ function onSettingsChanged() {
   }
 }
 
-module.exports = { init, getState, start, pause, reset, skip, onSettingsChanged };
+module.exports = { init, getState, start, pause, reset, skip, setFocusTask, onSettingsChanged };

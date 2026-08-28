@@ -55,6 +55,7 @@
     getData: () => S.data,
     getSettings: () => S.settings,
     getPomo: () => S.pomo,
+    setPomo: (p) => { S.pomo = p; },
     goBack: () => showView(S.prevView),
     showView,
   };
@@ -164,6 +165,7 @@
       S.pomo = pomo;
       if (S.view === 'focus') views.focus.render();
     });
+    api.onOpenFocusTab(() => showView('focus'));
   }
 
   async function main() {

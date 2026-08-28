@@ -5,6 +5,7 @@ const auth = require('./auth');
 const sync = require('./sync');
 const pomodoro = require('./pomodoro');
 const windowMod = require('./window');
+const miniWindow = require('./mini-window');
 const tray = require('./tray');
 const ipc = require('./ipc');
 
@@ -56,6 +57,14 @@ if (!gotLock) {
       onSyncNow: () => sync.syncNow('manual'),
       isPinned: () => !!stores.settings.data.pinned,
       onSetPinned: (pinned) => ipc.setPinnedEverywhere(pinned),
+      isMiniOpen: () => miniWindow.isOpen(),
+      onToggleMini: () => {
+        const open = miniWindow.toggle(stores.settings);
+        ipc.broadcast('push:mini-changed', { open });
+        tray.rebuild();
+      },
+      isMiniPinned: () => !!stores.settings.data.miniPinned,
+      onSetMiniPinned: (pinned) => { miniWindow.setPinned(pinned); tray.rebuild(); },
       onQuit: () => { quitting = true; app.quit(); },
     });
 

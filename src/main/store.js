@@ -50,6 +50,9 @@ const DEFAULTS = {
     pinned: false,
     autoLaunch: false,
     windowPos: null,
+    windowSize: null,
+    miniPinned: true,
+    miniPos: null,
     pomoFocusMin: 25,
     pomoShortBreakMin: 5,
     pomoLongBreakMin: 15,
@@ -63,6 +66,8 @@ const DEFAULTS = {
     lastSyncAt: null,
     pomoDate: null,
     pomoCount: 0,
+    focusTaskId: null,
+    focusTaskTitle: null,
   },
   pending: { ops: [] },
 };

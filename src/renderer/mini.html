@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'">
+  <title>포커스</title>
+  <link rel="stylesheet" href="mini.css">
+</head>
+<body>
+  <div class="card">
+    <button class="ring" id="toggle" title="시작 / 일시정지">
+      <svg class="ring-svg" width="56" height="56" viewBox="0 0 56 56">
+        <circle class="track" cx="28" cy="28" r="25" fill="none" stroke-width="4"/>
+        <circle class="bar" cx="28" cy="28" r="25" fill="none" stroke-width="4"
+                stroke-linecap="round" transform="rotate(-90 28 28)"/>
+      </svg>
+      <span class="glyph" id="glyph"></span>
+    </button>
+
+    <div class="info">
+      <div class="label-row">
+        <span class="label" id="label">집중</span>
+        <span class="chev">›</span>
+      </div>
+      <div class="time" id="time">25:00</div>
+    </div>
+
+    <div class="tools">
+      <button class="tool" id="pin" title="최상단 고정">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76V7a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3.76a2 2 0 0 0 .59 1.42l1.7 1.7a1 1 0 0 1-.7 1.71H6.41a1 1 0 0 1-.7-1.7l1.7-1.71a2 2 0 0 0 .59-1.42Z"/></svg>
+      </button>
+      <button class="tool" id="close" title="미니 창 닫기">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <script src="date-logic.js"></script>
+  <script src="mini.js"></script>
+</body>
+</html>

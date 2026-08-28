@@ -6,6 +6,7 @@ const auth = require('./auth');
 const sync = require('./sync');
 const pomodoro = require('./pomodoro');
 const windowMod = require('./window');
+const miniWindow = require('./mini-window');
 const tray = require('./tray');
 
 let stores = null;
@@ -20,9 +21,11 @@ function handle(channel, fn) {
   });
 }
 
+// 메인 위젯과 미니 창 양쪽에 전달 (미니 창도 타이머 갱신을 받아야 함)
 function broadcast(channel, payload) {
-  const win = windowMod.get();
-  if (win && !win.isDestroyed()) win.webContents.send(channel, payload);
+  for (const win of [windowMod.get(), miniWindow.get()]) {
+    if (win && !win.isDestroyed()) win.webContents.send(channel, payload);
+  }
 }
 
 function applyAutoLaunch(enabled) {
@@ -119,6 +122,34 @@ function init(s) {
   handle('pomo:pause', () => pomodoro.pause());
   handle('pomo:reset', () => pomodoro.reset());
   handle('pomo:skip', () => pomodoro.skip());
+  handle('pomo:setTask', (task) => {
+    if (task && typeof task.id === 'string' && typeof task.title === 'string') {
+      return pomodoro.setFocusTask({ id: task.id, title: task.title.slice(0, 120) });
+    }
+    return pomodoro.setFocusTask(null);
+  });
+
+  handle('mini:toggle', () => {
+    const open = miniWindow.toggle(stores.settings);
+    broadcast('push:mini-changed', { open });
+    tray.rebuild();
+    return { open };
+  });
+  handle('mini:close', () => {
+    miniWindow.close();
+    broadcast('push:mini-changed', { open: false });
+    tray.rebuild();
+  });
+  handle('mini:isOpen', () => ({ open: miniWindow.isOpen() }));
+  handle('mini:setPinned', (pinned) => {
+    miniWindow.setPinned(!!pinned);
+    tray.rebuild();
+  });
+
+  handle('window:openFocusTab', () => {
+    windowMod.show();
+    broadcast('push:open-focus-tab', {});
+  });
 
   handle('misc:openSetupGuide', () => {
     return shell.openPath(path.join(app.getAppPath(), 'SETUP.md'));

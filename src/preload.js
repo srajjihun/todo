@@ -38,6 +38,13 @@ contextBridge.exposeInMainWorld('api', {
   pomoPause: () => invoke('pomo:pause'),
   pomoReset: () => invoke('pomo:reset'),
   pomoSkip: () => invoke('pomo:skip'),
+  pomoSetTask: (task) => invoke('pomo:setTask', task),
+  // 포커스 미니 창
+  toggleMini: () => invoke('mini:toggle'),
+  closeMini: () => invoke('mini:close'),
+  isMiniOpen: () => invoke('mini:isOpen'),
+  setMiniPinned: (pinned) => invoke('mini:setPinned', pinned),
+  openFocusTab: () => invoke('window:openFocusTab'),
   // 기타
   openSetupGuide: () => invoke('misc:openSetupGuide'),
   // 푸시 구독
@@ -45,4 +52,6 @@ contextBridge.exposeInMainWorld('api', {
   onSyncStatus: on('push:sync-status'),
   onAuthChanged: on('push:auth-changed'),
   onPomoTick: on('push:pomo-tick'),
+  onMiniChanged: on('push:mini-changed'),
+  onOpenFocusTab: on('push:open-focus-tab'),
 });

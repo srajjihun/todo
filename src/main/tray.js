@@ -29,6 +29,19 @@ function rebuild() {
       click: (item) => deps.onSetPinned(item.checked),
     },
     { type: 'separator' },
+    {
+      label: '포커스 미니 창',
+      type: 'checkbox',
+      checked: deps.isMiniOpen(),
+      click: () => deps.onToggleMini(),
+    },
+    {
+      label: '미니 창 최상단 고정',
+      type: 'checkbox',
+      checked: deps.isMiniPinned(),
+      click: (item) => deps.onSetMiniPinned(item.checked),
+    },
+    { type: 'separator' },
     { label: '종료', click: () => deps.onQuit() },
   ]);
   tray.setContextMenu(menu);

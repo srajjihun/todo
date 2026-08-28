@@ -7,22 +7,46 @@ const { BrowserWindow, screen } = require('electron');
 const WIDTH = 360;
 const HEIGHT = 540;
 const MARGIN = 12;
+const MIN_WIDTH = 300;
+const MIN_HEIGHT = 380;
+const MAX_WIDTH = 900;
+const MAX_HEIGHT = 1400;
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+// 저장된 크기(없거나 이상하면 기본값)
+function currentSize() {
+  const s = settingsStore.data.windowSize;
+  if (s && Number.isFinite(s.width) && Number.isFinite(s.height)) {
+    return {
+      width: Math.round(clamp(s.width, MIN_WIDTH, MAX_WIDTH)),
+      height: Math.round(clamp(s.height, MIN_HEIGHT, MAX_HEIGHT)),
+    };
+  }
+  return { width: WIDTH, height: HEIGHT };
+}
 
 let win = null;
 let settingsStore = null;
 let isQuitting = () => false;
 let saveMoveTimer = null;
+let saveSizeTimer = null;
 
 function create(store, opts) {
   settingsStore = store;
   if (opts && opts.isQuitting) isQuitting = opts.isQuitting;
 
+  const size = currentSize();
   win = new BrowserWindow({
-    width: WIDTH,
-    height: HEIGHT,
+    width: size.width,
+    height: size.height,
+    minWidth: MIN_WIDTH,
+    minHeight: MIN_HEIGHT,
+    maxWidth: MAX_WIDTH,
+    maxHeight: MAX_HEIGHT,
     frame: false,
     transparent: true,
-    resizable: false,
+    resizable: true,
     skipTaskbar: true,
     alwaysOnTop: !!settingsStore.data.pinned,
     show: false,
@@ -66,15 +90,23 @@ function create(store, opts) {
     if (opts && opts.onSessionEnd) opts.onSessionEnd();
   });
 
-  // 드래그로 옮긴 위치 저장 (디바운스) + 다른 배율의 모니터로 끌었을 때 크기 재고정
+  // 드래그로 옮긴 위치 저장 (디바운스)
   win.on('moved', () => {
     clearTimeout(saveMoveTimer);
     saveMoveTimer = setTimeout(() => {
       if (!win || win.isDestroyed()) return;
-      const [w, h] = win.getSize();
-      if (w !== WIDTH || h !== HEIGHT) win.setSize(WIDTH, HEIGHT);
       const [x, y] = win.getPosition();
       settingsStore.update({ windowPos: { x, y } });
+    }, 500);
+  });
+
+  // 사용자가 조절한 크기 저장 (디바운스)
+  win.on('resized', () => {
+    clearTimeout(saveSizeTimer);
+    saveSizeTimer = setTimeout(() => {
+      if (!win || win.isDestroyed()) return;
+      const [width, height] = win.getSize();
+      settingsStore.update({ windowSize: { width, height } });
     }, 500);
   });
 
@@ -90,16 +122,27 @@ function get() { return win; }
 
 function bottomRightBounds() {
   const wa = screen.getPrimaryDisplay().workArea; // 작업표시줄 제외 영역
+  const { width, height } = liveSize();
   return {
-    x: wa.x + wa.width - WIDTH - MARGIN,
-    y: wa.y + wa.height - HEIGHT - MARGIN,
+    x: wa.x + wa.width - width - MARGIN,
+    y: wa.y + wa.height - height - MARGIN,
   };
 }
 
-// setPosition은 배율(DPI) 100% 아님 + resizable:false 조합에서 창 크기를 왜곡하는
-// 오래된 Electron/Windows 버그가 있어, 항상 크기를 함께 다시 지정한다
+// 현재 실제 창 크기(창이 없으면 저장된 크기)
+function liveSize() {
+  if (win && !win.isDestroyed()) {
+    const [width, height] = win.getSize();
+    return { width, height };
+  }
+  return currentSize();
+}
+
+// setPosition은 배율(DPI)이 100%가 아닐 때 창 크기를 왜곡하는 오래된
+// Electron/Windows 버그가 있어, 크기를 함께 명시하는 setBounds를 쓴다
 function moveTo(x, y) {
-  win.setBounds({ x, y, width: WIDTH, height: HEIGHT });
+  const { width, height } = liveSize();
+  win.setBounds({ x, y, width, height });
 }
 
 function applyPosition() {
@@ -113,10 +156,11 @@ function applyPosition() {
 }
 
 function isVisibleOnSomeDisplay(pos) {
+  const { width } = liveSize();
   return screen.getAllDisplays().some((d) => {
     const wa = d.workArea;
     // 창의 상당 부분이 이 디스플레이 안에 있는지
-    return pos.x + WIDTH - 40 > wa.x && pos.x + 40 < wa.x + wa.width
+    return pos.x + width - 40 > wa.x && pos.x + 40 < wa.x + wa.width
       && pos.y + 40 > wa.y && pos.y + 60 < wa.y + wa.height;
   });
 }
@@ -130,8 +174,10 @@ function ensureOnScreen() {
   }
 }
 
+// 위치와 크기를 모두 기본값(우측 하단, 360x540)으로 되돌린다
 function resetPosition() {
-  settingsStore.update({ windowPos: null });
+  settingsStore.update({ windowPos: null, windowSize: null });
+  if (win && !win.isDestroyed()) win.setSize(WIDTH, HEIGHT);
   const p = bottomRightBounds();
   moveTo(p.x, p.y);
 }
