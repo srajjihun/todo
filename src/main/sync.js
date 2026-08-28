@@ -228,6 +228,13 @@ function syncedCalendarIds() {
   let ids = st.visibleCalendarIds && st.visibleCalendarIds.length
     ? st.visibleCalendarIds.filter((id) => known.includes(id))
     : known.slice();
+  // 계정을 바꾸면 저장된 표시 목록이 옛 계정 캘린더를 가리켜 하나도 안 맞을 수 있다.
+  // 그 경우 설정을 지우고 전체 표시로 되돌린다 (아무것도 안 보이는 사고 방지).
+  if (!ids.length && known.length && st.visibleCalendarIds && st.visibleCalendarIds.length) {
+    console.warn('[sync] 표시 캘린더 설정이 현재 계정과 맞지 않아 전체 표시로 되돌립니다');
+    stores.settings.update({ visibleCalendarIds: null });
+    ids = known.slice();
+  }
   // 캘린더 목록을 아직 못 읽었을 때만 'primary' 별칭을 쓴다.
   // 목록을 안 뒤에도 별칭을 함께 동기화하면 같은 캘린더가 두 벌로 들어온다.
   if (!ids.length) ids = ['primary'];

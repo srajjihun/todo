@@ -6,7 +6,9 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "dist": "electron-builder --win"
+    "dist": "electron-builder --win",
+    "pack": "electron-builder --win --dir",
+    "update": "npm run pack && node scripts/update-installed.js"
   },
   "author": "Siraj",
   "license": "MIT",
