@@ -27,6 +27,19 @@ function logFatal(tag, err) {
 process.on('uncaughtException', (e) => logFatal('uncaughtException', e));
 process.on('unhandledRejection', (e) => logFatal('unhandledRejection', e));
 
+// 부팅 비콘: 이 프로세스가 main.js를 실행했다는 사실 자체를 가장 먼저 남긴다.
+// (로그가 한 줄도 없으면 "실행됐는데 기록이 없다"와 "실행 자체가 안 됐다"를 구분할 수 없다)
+try {
+  require('fs').appendFileSync(
+    require('path').join(app.getPath('userData'), 'sync.log'),
+    new Date().toISOString() + '  [부팅] pid=' + process.pid + ' argv=' + process.argv.slice(1).join(' ') + '\n');
+} catch (e) {
+  try {
+    require('fs').appendFileSync('C:\\Siraj\\todo\\boot-fallback.log',
+      new Date().toISOString() + '  userData 로그 기록 실패: ' + e.message + '\n');
+  } catch { /* 무시 */ }
+}
+
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   // 이미 실행 중이라 이 프로세스는 종료된다. 아무 흔적이 없으면

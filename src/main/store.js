@@ -13,13 +13,33 @@ class JsonStore {
   }
 
   _load() {
-    try {
-      const raw = fs.readFileSync(this.filePath, 'utf8');
-      const parsed = JSON.parse(raw);
-      return Object.assign(structuredClone(this.defaults), parsed);
-    } catch {
-      return structuredClone(this.defaults);
+    // 백신/색인 등이 파일을 잠깐 잡고 있으면 읽기가 일시적으로 실패할 수 있다.
+    // 그때 기본값으로 떠버리면 설정(할 일 캘린더 연결 등)이 사라진 것처럼 보이고,
+    // 이후 저장이 정상 파일을 덮어써 데이터가 실제로 파괴된다. 반드시 재시도한다.
+    let lastErr = null;
+    for (let i = 0; i < 5; i++) {
+      try {
+        const raw = fs.readFileSync(this.filePath, 'utf8');
+        const parsed = JSON.parse(raw);
+        return Object.assign(structuredClone(this.defaults), parsed);
+      } catch (e) {
+        lastErr = e;
+        if (e && e.code === 'ENOENT') break; // 파일이 없으면 정상적인 첫 실행
+        // 동기적으로 잠깐 대기 후 재시도
+        try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 40); } catch { /* 무시 */ }
+      }
     }
+    if (lastErr && lastErr.code !== 'ENOENT') {
+      // 파일이 있는데도 못 읽었다 — 조용히 넘어가지 않고 흔적을 남긴다
+      const line = new Date().toISOString() + '  !! 저장 파일 읽기 실패(기본값으로 시작): '
+        + this.filePath + ' — ' + lastErr.message + '\n';
+      console.error(line.trim());
+      try {
+        fs.appendFileSync(path.join(path.dirname(this.filePath), 'sync.log'), line);
+      } catch { /* 무시 */ }
+      this.loadFailed = true;
+    }
+    return structuredClone(this.defaults);
   }
 
   save() {
