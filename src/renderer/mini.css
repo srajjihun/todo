@@ -25,10 +25,10 @@ html, body {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 11px;
   height: 100%;
   /* 우측 패딩을 좌측보다 작게 — 오른쪽에 빈 여백이 남지 않도록 */
-  padding: 0 12px 0 14px;
+  padding: 0 8px 0 13px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -113,16 +113,18 @@ html, body {
   letter-spacing: 0.5px;
   font-variant-numeric: tabular-nums;
   line-height: 1.15;
+  /* 우하단 아이콘 자리를 비워둔다 (제목은 카드 폭을 전부 쓰도록) */
+  padding-right: 54px;
 }
 
 /* ---- 호버 시에만 보이는 핀/닫기 (레이아웃 차지 안 함) ---- */
 .tools {
   position: absolute;
-  top: 4px;
-  right: 5px;
+  bottom: 10px;
+  right: 7px;
   display: flex;
-  gap: 1px;
-  opacity: 0;
+  gap: 0;
+  opacity: 0.45;
   transition: opacity 0.12s;
   -webkit-app-region: no-drag;
 }
@@ -141,5 +143,4 @@ html, body {
   padding: 0;
 }
 .tool:hover { background: #0000000d; color: #5b5e66; }
-.tool.active { color: var(--accent); opacity: 1; }
-.tools:has(.tool.active) { opacity: 1; }
+.tool.active { color: var(--accent); }

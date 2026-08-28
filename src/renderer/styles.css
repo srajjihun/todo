@@ -537,6 +537,12 @@ html, body {
 .set-row input[type="number"] { width: 64px; }
 .set-row select { flex: 1.2; min-width: 0; }
 .set-row input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; }
+.set-note {
+  color: var(--text-faint);
+  font-size: 11px;
+  line-height: 1.5;
+  margin-top: 6px;
+}
 .set-link {
   color: var(--accent);
   font-size: 12px;

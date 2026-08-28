@@ -133,8 +133,10 @@
         <h3>동기화</h3>
         <div class="set-row"><label>자동 동기화 주기</label>
           <select id="sel-interval">
-            ${[1, 5, 15, 30].map((m) => `<option value="${m}" ${Number(s.syncIntervalMin) === m ? 'selected' : ''}>${m}분</option>`).join('')}
+            ${[[180, '3시간'], [360, '6시간'], [720, '12시간']]
+              .map(([m, t]) => `<option value="${m}" ${Number(s.syncIntervalMin) === m ? 'selected' : ''}>${t}</option>`).join('')}
           </select></div>
+        <p class="set-note">위젯을 열 때와 ⟳ 버튼을 누를 때는 주기와 상관없이 바로 동기화됩니다.</p>
       </div>
 
       <div class="set-section">

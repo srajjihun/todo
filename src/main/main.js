@@ -29,6 +29,14 @@ if (!gotLock) {
     Menu.setApplicationMenu(null);
 
     const stores = createStores(app.getPath('userData'));
+
+    // 동기화 주기 선택지가 분 단위(1~30)에서 시간 단위(3/6/12시간)로 바뀌어,
+    // 예전에 저장된 값은 가장 짧은 새 주기로 옮긴다
+    const ALLOWED_INTERVALS = [180, 360, 720];
+    if (!ALLOWED_INTERVALS.includes(Number(stores.settings.data.syncIntervalMin))) {
+      stores.settings.update({ syncIntervalMin: 180 });
+    }
+
     auth.init(stores);
 
     const win = windowMod.create(stores.settings, {

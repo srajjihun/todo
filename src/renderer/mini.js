@@ -14,6 +14,7 @@
     glyph: document.getElementById('glyph'),
     label: document.getElementById('label'),
     time: document.getElementById('time'),
+    reset: document.getElementById('reset'),
     pin: document.getElementById('pin'),
     close: document.getElementById('close'),
   };
@@ -44,6 +45,8 @@
 
   // 라벨을 누르면 메인 위젯의 포커스 탭을 연다
   els.label.parentElement.addEventListener('click', () => api.openFocusTab());
+
+  els.reset.addEventListener('click', () => api.pomoReset());
 
   els.pin.addEventListener('click', async () => {
     const s = await api.getSettings();

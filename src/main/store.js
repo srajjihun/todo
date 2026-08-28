@@ -46,7 +46,7 @@ const DEFAULTS = {
     clientId: '',
     clientSecret: '',
     taskListId: '@default',
-    syncIntervalMin: 5,
+    syncIntervalMin: 180,
     pinned: false,
     autoLaunch: false,
     windowPos: null,

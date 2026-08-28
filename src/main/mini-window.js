@@ -5,8 +5,8 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const { BrowserWindow, screen } = require('electron');
 
-const WIDTH = 232;
-const HEIGHT = 84;
+const WIDTH = 196;
+const HEIGHT = 80;
 const MARGIN = 16;
 
 let win = null;

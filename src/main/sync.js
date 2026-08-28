@@ -56,7 +56,8 @@ function getStatus() { return lastStatus; }
 // ---------------- 스케줄러 ----------------
 function startScheduler() {
   stopScheduler();
-  const min = Math.min(60, Math.max(1, Number(stores.settings.data.syncIntervalMin) || 5));
+  // 최대 24시간까지 허용 (설정에서 3/6/12시간 선택)
+  const min = Math.min(1440, Math.max(1, Number(stores.settings.data.syncIntervalMin) || 180));
   timer = setInterval(() => { syncNow('interval'); }, min * 60 * 1000);
 }
 function stopScheduler() {
