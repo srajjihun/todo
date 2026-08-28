@@ -40,8 +40,54 @@ try {
   } catch { /* 무시 */ }
 }
 
+const HEARTBEAT_FILE = require('path').join(app.getPath('userData'), 'heartbeat.txt');
+const HEARTBEAT_STALE_MS = 45000;
+
+// 정상 인스턴스는 15초마다 심장박동을 남긴다.
+// 응답 없는 유령 인스턴스(구버전/멈춘 프로세스)가 잠금만 쥐고 있는 상황을
+// 새로 뜬 프로세스가 감지해 강제로 자리를 넘겨받기 위한 장치다.
+function writeHeartbeat() {
+  try { require('fs').writeFileSync(HEARTBEAT_FILE, process.pid + ' ' + Date.now()); } catch { /* 무시 */ }
+}
+function heartbeatAgeMs() {
+  try {
+    const [, t] = require('fs').readFileSync(HEARTBEAT_FILE, 'utf8').trim().split(' ');
+    return Date.now() - Number(t);
+  } catch { return Infinity; }
+}
+function bootLog(msg) {
+  try {
+    require('fs').appendFileSync(
+      require('path').join(app.getPath('userData'), 'sync.log'),
+      new Date().toISOString() + '  ' + msg + '\n');
+  } catch { /* 무시 */ }
+}
+
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
+  const age = heartbeatAgeMs();
+  const retried = process.argv.includes('--after-takeover');
+  if (age > HEARTBEAT_STALE_MS && !retried) {
+    // 잠금은 쥐고 있는데 심장박동이 없다 → 유령. 같은 실행 파일의 프로세스를 정리하고 다시 뜬다.
+    bootLog('!! 응답 없는 기존 인스턴스 감지(심장박동 ' +
+      (age === Infinity ? '없음' : Math.round(age / 1000) + '초 전') + ') → 정리 후 재시작');
+    try {
+      const { execFileSync } = require('child_process');
+      const me = process.pid;
+      const out = execFileSync('powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-Command',
+          "Get-CimInstance Win32_Process -Filter \"Name='electron.exe'\" | " +
+          "Where-Object { $_.ExecutablePath -eq '" + process.execPath.replace(/'/g, "''") + "' -and $_.ProcessId -ne " + me + " } | " +
+          "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; $_.ProcessId }"],
+        { encoding: 'utf8', timeout: 15000 });
+      bootLog('정리된 pid: ' + (out.trim().replace(/\s+/g, ',') || '없음'));
+    } catch (e) {
+      bootLog('!! 유령 정리 실패: ' + e.message);
+    }
+    app.relaunch({ args: process.argv.slice(1).concat(['--after-takeover']) });
+    app.exit(0);
+    return;
+  }
   // 이미 실행 중이라 이 프로세스는 종료된다. 아무 흔적이 없으면
   // "실행했는데 반응이 없다"는 상황을 나중에 확인할 수 없으므로 로그를 남긴다.
   try {
@@ -74,6 +120,8 @@ if (!gotLock) {
 
   app.whenReady().then(() => {
     Menu.setApplicationMenu(null);
+    writeHeartbeat();
+    setInterval(writeHeartbeat, 15000);
 
     const stores = createStores(app.getPath('userData'));
 
