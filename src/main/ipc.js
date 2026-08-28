@@ -48,6 +48,7 @@ const SETTABLE_KEYS = {
   clientId: 'string',
   clientSecret: 'string',
   taskListId: 'string',
+  todoCalendarId: 'string',
   syncIntervalMin: 'number',
   autoLaunch: 'boolean',
   pomoFocusMin: 'number',
@@ -83,6 +84,9 @@ function init(s) {
     if ('taskListId' in clean && prev.taskListId !== next.taskListId) {
       sync.onTaskListChanged();
     }
+    if ('todoCalendarId' in clean && prev.todoCalendarId !== next.todoCalendarId) {
+      sync.onTodoCalendarChanged();
+    }
     if (['pomoFocusMin', 'pomoShortBreakMin', 'pomoLongBreakMin', 'pomoLongBreakEvery']
       .some((k) => k in clean && prev[k] !== next[k])) {
       pomodoro.onSettingsChanged();
@@ -108,6 +112,41 @@ function init(s) {
   handle('tasks:setCompleted', (id, completed) => sync.setTaskCompleted(id, completed));
   handle('tasks:delete', (id) => sync.deleteTask(id));
   handle('tasks:postponeOverdue', () => sync.postponeOverdue());
+
+  handle('calendars:list', async () => {
+    const googleApi = require('./google-api');
+    const res = await googleApi.listCalendars();
+    return (res.items || []).map((c) => ({
+      id: c.id,
+      title: c.summaryOverride || c.summary || c.id,
+      primary: !!c.primary,
+      accessRole: c.accessRole,
+      selected: c.selected !== false,
+    }));
+  });
+
+  // 특정 캘린더의 일정을 그대로 조회 (진단/확인용)
+  handle('calendars:peek', async (calendarId, days) => {
+    const googleApi = require('./google-api');
+    const n = Number(days) || 30;
+    const res = await googleApi.listEvents(calendarId, {
+      timeMin: new Date().toISOString(),
+      timeMax: new Date(Date.now() + n * 86400000).toISOString(),
+      singleEvents: 'true',
+      maxResults: 50,
+    });
+    return (res.items || []).map((e) => ({
+      id: e.id,
+      title: e.summary || '(제목 없음)',
+      start: (e.start && (e.start.date || e.start.dateTime)) || null,
+      eventType: e.eventType || null,
+      recurringEventId: e.recurringEventId || null,
+    }));
+  });
+
+  handle('todos:addRecurring', (t) => sync.addRecurringTodo(t || {}));
+  handle('todos:setDone', (masterId, date, done) => sync.setOccurrenceDone(masterId, date, !!done));
+  handle('todos:deleteRecurring', (masterId) => sync.deleteRecurringTodo(masterId));
 
   handle('tasklists:list', async () => {
     const googleApi = require('./google-api');

@@ -11,7 +11,7 @@ test('normalizeEvent: 종일 이벤트', () => {
     end: { date: '2026-08-30' },
   });
   assert.deepEqual(ev, {
-    id: 'e1', title: '휴가', allDay: true,
+    id: 'e1', title: '휴가', calendarId: 'primary', recurringEventId: null, allDay: true,
     startDate: '2026-08-28', startTime: null,
     endDate: '2026-08-30', endTime: null,
   });

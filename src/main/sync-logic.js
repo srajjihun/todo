@@ -13,8 +13,14 @@ function addDaysStr(dateStr, n) {
 function isTempId(id) { return typeof id === 'string' && id.startsWith('local-'); }
 
 // Google Calendar 이벤트 → 위젯 내부 표현
-function normalizeEvent(e) {
-  const base = { id: e.id, title: e.summary || '(제목 없음)' };
+function normalizeEvent(e, calendarId) {
+  const base = {
+    id: e.id,
+    title: e.summary || '(제목 없음)',
+    calendarId: calendarId || e.calendarId || 'primary',
+    // 반복 일정의 인스턴스면 부모(마스터) id — 할 일 조인에 쓰인다
+    recurringEventId: e.recurringEventId || null,
+  };
   if (e.start && e.start.date) {
     return {
       ...base,
@@ -90,7 +96,7 @@ function applyPendingToEvents(serverEvents, localEvents, ops) {
 // 증분(pull) 델타 적용: status=cancelled → 삭제, 그 외 upsert.
 // 캐시는 singleEvents 확장 인스턴스 id('마스터id_20260901T…')로 키가 잡혀 있는데,
 // 반복 일정 전체 삭제 시 델타에는 확장되지 않은 마스터 id가 오므로 접두사 일치로도 지운다.
-function applyEventsDelta(events, items) {
+function applyEventsDelta(events, items, calendarId) {
   for (const item of items) {
     if (item.status === 'cancelled') {
       delete events[item.id];
@@ -99,13 +105,86 @@ function applyEventsDelta(events, items) {
         if (k.startsWith(prefix)) delete events[k];
       }
     } else {
-      events[item.id] = normalizeEvent(item);
+      events[item.id] = normalizeEvent(item, calendarId);
     }
   }
   return events;
 }
 
+// ---- 반복 할 일: 완료 원장 ----
+// 구글 일정의 extendedProperties.private 에 done_YYYY-MM = "1,3,5" 형태로 저장한다.
+// 인스턴스마다 수정하면 반복 예외가 잔뜩 생기므로, 부모 일정 하나에 월별로 모아 둔다.
+function parseLedger(priv) {
+  const out = {};
+  for (const [k, v] of Object.entries(priv || {})) {
+    const m = /^done_(\d{4}-\d{2})$/.exec(k);
+    if (!m) continue;
+    const days = String(v || '').split(',')
+      .map((x) => parseInt(x, 10))
+      .filter((n) => Number.isInteger(n) && n >= 1 && n <= 31);
+    if (days.length) out[m[1]] = days.sort((a, b) => a - b);
+  }
+  return out;
+}
+
+// 원장에서 특정 날짜의 완료 여부
+function ledgerHas(ledger, dateStr) {
+  const month = dateStr.slice(0, 7);
+  const day = parseInt(dateStr.slice(8, 10), 10);
+  return !!(ledger && ledger[month] && ledger[month].includes(day));
+}
+
+// 원장에 날짜 추가/제거 → 그 달의 새 값 (빈 달은 null = 키 삭제)
+function ledgerSet(ledger, dateStr, done) {
+  const month = dateStr.slice(0, 7);
+  const day = parseInt(dateStr.slice(8, 10), 10);
+  const cur = new Set((ledger && ledger[month]) || []);
+  if (done) cur.add(day);
+  else cur.delete(day);
+  const days = [...cur].sort((a, b) => a - b);
+  return { month, days, value: days.length ? days.join(',') : null };
+}
+
+// 반복 할 일 마스터(부모 일정) 정규화
+function normalizeTodoMaster(e, calendarId) {
+  return {
+    id: e.id,
+    calendarId: calendarId || 'primary',
+    title: e.summary || '(제목 없음)',
+    recurrence: e.recurrence || null,
+    etag: e.etag || null,
+    ledger: parseLedger(e.extendedProperties && e.extendedProperties.private),
+  };
+}
+
+// 펼쳐진 인스턴스 + 마스터를 조인해 할 일 탭에 그릴 항목 만들기
+function buildTodoOccurrences(events, todoMasters) {
+  const out = [];
+  for (const ev of events) {
+    const masterId = ev.recurringEventId || ev.id;
+    const master = todoMasters[masterId];
+    if (!master) continue;
+    out.push({
+      kind: 'occ',
+      id: ev.id,
+      masterId,
+      calendarId: master.calendarId,
+      title: ev.title,
+      due: ev.startDate,
+      status: ledgerHas(master.ledger, ev.startDate) ? 'completed' : 'needsAction',
+      repeating: !!master.recurrence,
+      position: ev.startTime || '',
+    });
+  }
+  return out;
+}
+
 module.exports = {
+  parseLedger,
+  ledgerHas,
+  ledgerSet,
+  normalizeTodoMaster,
+  buildTodoOccurrences,
   isTempId,
   normalizeEvent,
   normalizeTask,

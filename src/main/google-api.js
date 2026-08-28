@@ -26,9 +26,9 @@ function isRetryable(e) {
   return true; // fetch TypeError(오프라인), 소켓 오류 등
 }
 
-async function apiFetch(url, { method = 'GET', body, retryOn401 = true } = {}) {
+async function apiFetch(url, { method = 'GET', body, retryOn401 = true, headers: extra } = {}) {
   const token = await auth.getAccessToken();
-  const headers = { Authorization: `Bearer ${token}` };
+  const headers = { Authorization: `Bearer ${token}`, ...(extra || {}) };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   const res = await fetch(url, {
     method,
@@ -37,7 +37,7 @@ async function apiFetch(url, { method = 'GET', body, retryOn401 = true } = {}) {
   });
   if (res.status === 401 && retryOn401) {
     auth.invalidateAccessToken();
-    return apiFetch(url, { method, body, retryOn401: false });
+    return apiFetch(url, { method, body, retryOn401: false, headers: extra });
   }
   if (res.status === 204) return null;
   const text = await res.text();
@@ -60,15 +60,31 @@ function qs(params) {
   return s ? `?${s}` : '';
 }
 
-// ---- Calendar (primary 캘린더) ----
-function listEvents(params) {
-  return apiFetch(`${CAL_BASE}/calendars/primary/events${qs(params)}`);
+// ---- Calendar ----
+// 사용자의 캘린더 목록 (공휴일 등 구독 캘린더 포함)
+function listCalendars() {
+  return apiFetch(`${CAL_BASE}/users/me/calendarList${qs({ maxResults: 250, minAccessRole: 'reader' })}`);
 }
-function insertEvent(body) {
-  return apiFetch(`${CAL_BASE}/calendars/primary/events`, { method: 'POST', body });
+
+const cal = (id) => encodeURIComponent(id || 'primary');
+
+function listEvents(calendarId, params) {
+  return apiFetch(`${CAL_BASE}/calendars/${cal(calendarId)}/events${qs(params)}`);
 }
-function deleteEvent(eventId) {
-  return apiFetch(`${CAL_BASE}/calendars/primary/events/${encodeURIComponent(eventId)}`, { method: 'DELETE' });
+function insertEvent(calendarId, body) {
+  return apiFetch(`${CAL_BASE}/calendars/${cal(calendarId)}/events`, { method: 'POST', body });
+}
+function deleteEvent(calendarId, eventId) {
+  return apiFetch(`${CAL_BASE}/calendars/${cal(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    { method: 'DELETE' });
+}
+// etag를 주면 If-Match로 낙관적 잠금 (동시 수정 시 412)
+function patchEvent(calendarId, eventId, body, etag) {
+  return apiFetch(`${CAL_BASE}/calendars/${cal(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    { method: 'PATCH', body, headers: etag ? { 'If-Match': etag } : undefined });
+}
+function getEvent(calendarId, eventId) {
+  return apiFetch(`${CAL_BASE}/calendars/${cal(calendarId)}/events/${encodeURIComponent(eventId)}`);
 }
 
 // ---- Tasks ----
@@ -102,9 +118,12 @@ function deleteTask(taskListId, taskId) {
 module.exports = {
   ApiError,
   isRetryable,
+  listCalendars,
   listEvents,
   insertEvent,
   deleteEvent,
+  patchEvent,
+  getEvent,
   listTaskLists,
   listTasks,
   insertTask,

@@ -46,6 +46,8 @@ const DEFAULTS = {
     clientId: '',
     clientSecret: '',
     taskListId: '@default',
+    todoCalendarId: null,      // 전용 '할 일' 캘린더 (null이면 미사용)
+    visibleCalendarIds: null,  // 캘린더 탭에 표시할 캘린더 (null이면 전체)
     syncIntervalMin: 180,
     pinned: false,
     autoLaunch: false,
@@ -63,7 +65,9 @@ const DEFAULTS = {
   tokens: { refreshTokenEnc: null, encrypted: false },
   cache: {
     events: {},
-    eventsSyncToken: null,
+    eventsSyncTokens: {},   // 캘린더별 증분 동기화 토큰
+    calendars: [],          // 캘린더 목록 캐시
+    todoMasters: {},        // 반복 할 일 마스터(반복 규칙 + 완료 원장)
     tasks: {},
     lastSyncAt: null,
     pomoDate: null,

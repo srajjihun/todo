@@ -5,6 +5,7 @@
   let root = null;
   let ctx = null;
   const state = {
+    repeatOpen: false, // 반복 할 일 추가 폼
     dateMode: false,   // false = 전체(그룹) 보기, true = 특정 날짜 보기
     viewDate: null,    // dateMode일 때 보는 날짜
     collapsed: new Set(['completed']),
@@ -28,6 +29,14 @@
   }
 
   function onClick(e) {
+    if (e.target.closest('#btn-repeat')) {
+      state.repeatOpen = !state.repeatOpen;
+      render();
+      const t = root.querySelector('#rep-title');
+      if (t) t.focus();
+      return;
+    }
+    if (e.target.closest('.repeat-cancel')) { state.repeatOpen = false; render(); return; }
     if (e.target.closest('.td-prev')) { shiftDate(-1); return; }
     if (e.target.closest('.td-next')) { shiftDate(1); return; }
     if (e.target.closest('.td-today')) { state.viewDate = ctx.D.todayStr(); render(); return; }
@@ -54,10 +63,11 @@
     const del = e.target.closest('.row-del');
     if (del) {
       const id = del.dataset.id;
+      const isOcc = del.dataset.occ === '1';
       if (state.confirmDelId === id) {
         clearTimeout(state.confirmTimer);
         state.confirmDelId = null;
-        ctx.call(ctx.api.deleteTask(id));
+        ctx.call(isOcc ? ctx.api.deleteRecurringTodo(id) : ctx.api.deleteTask(id));
       } else {
         state.confirmDelId = id;
         clearTimeout(state.confirmTimer);
@@ -75,13 +85,29 @@
   }
 
   function onChange(e) {
-    if (e.target.matches('.chk')) {
-      const row = e.target.closest('.task-row');
-      if (row) ctx.call(ctx.api.setTaskCompleted(row.dataset.id, e.target.checked));
+    if (!e.target.matches('.chk')) return;
+    const row = e.target.closest('.task-row');
+    if (!row) return;
+    if (row.dataset.kind === 'occ') {
+      ctx.call(ctx.api.setTodoDone(row.dataset.master, row.dataset.date, e.target.checked));
+    } else {
+      ctx.call(ctx.api.setTaskCompleted(row.dataset.id, e.target.checked));
     }
   }
 
   async function onSubmit(e) {
+    if (e.target.matches('#repeat-form')) {
+      e.preventDefault();
+      const title = root.querySelector('#rep-title').value.trim();
+      const startDate = root.querySelector('#rep-start').value;
+      const repeat = root.querySelector('#rep-freq').value;
+      if (!title || !startDate) return;
+      state.repeatOpen = false;
+      render();
+      const res = await ctx.call(ctx.api.addRecurringTodo({ title, startDate, repeat }));
+      if (res) ctx.toast('반복 할 일을 추가했습니다');
+      return;
+    }
     if (!e.target.matches('#task-form')) return;
     e.preventDefault();
     const titleInput = root.querySelector('#task-title');
@@ -105,7 +131,9 @@
     const esc = ctx.U.esc;
     const data = ctx.getData();
     const today = D.todayStr();
-    const groups = D.groupTasks(data.tasks || [], today);
+    // 구글 할 일(Tasks) + 전용 캘린더의 반복 할 일 발생분을 한 목록으로 합친다
+    const merged = [...(data.tasks || []), ...(data.todoOccurrences || [])];
+    const groups = D.groupTasks(merged, today);
 
     // 입력 중이던 내용 보존 (백그라운드 동기화로 다시 그려질 때)
     const prevTitle = root.querySelector('#task-title');
@@ -116,7 +144,7 @@
 
     // 날짜 보기: 그 날짜가 마감인 항목만 (미완료 먼저, 완료 아래)
     const viewDate = state.viewDate || today;
-    const dayTasks = (data.tasks || [])
+    const dayTasks = merged
       .filter((t) => t.due === viewDate)
       .sort((a, b) => {
         if ((a.status === 'completed') !== (b.status === 'completed')) return a.status === 'completed' ? 1 : -1;
@@ -141,7 +169,7 @@
         ${rows}`;
     }).join('');
 
-    const total = (data.tasks || []).length;
+    const total = merged.length;
 
     // 날짜 이동 바 (‹ 날짜 ›) + 전체/날짜 보기 전환
     const dateBar = `
@@ -164,6 +192,7 @@
 
     root.innerHTML = `
       ${dateBar}
+      ${state.repeatOpen ? repeatForm(esc, viewDate, today) : ''}
       <form id="task-form" class="task-add">
         <span class="plus">＋</span>
         <input type="text" id="task-title" placeholder="할일 추가" value="${esc(keepTitle)}" autocomplete="off">
@@ -171,6 +200,7 @@
         <!-- 숨김 submit 버튼: 필드가 2개라 Enter의 암시적 제출에 반드시 필요 -->
         <button type="submit" hidden tabindex="-1" aria-hidden="true"></button>
       </form>
+      <button class="repeat-toggle" id="btn-repeat">${state.repeatOpen ? '반복 추가 닫기' : '↻ 반복 할 일 추가'}</button>
       ${body}`;
 
     if (hadFocus) {
@@ -182,17 +212,46 @@
     }
   }
 
+  function repeatForm(esc, viewDate, today) {
+    const start = state.dateMode ? viewDate : today;
+    return `
+      <form id="repeat-form" class="add-form">
+        <input type="text" id="rep-title" placeholder="반복할 할 일 (예: 헬스)" required>
+        <div class="row">
+          <input type="date" id="rep-start" value="${esc(start)}" required>
+          <select id="rep-freq">
+            <option value="daily">매일</option>
+            <option value="weekdays">평일(월~금)</option>
+            <option value="every2days">격일</option>
+            <option value="weekly">매주</option>
+            <option value="monthly">매월</option>
+          </select>
+        </div>
+        <div class="row actions">
+          <button type="button" class="btn repeat-cancel">취소</button>
+          <button type="submit" class="btn primary">추가</button>
+        </div>
+      </form>`;
+  }
+
   function taskRow(t, today) {
     const esc = ctx.U.esc;
     const done = t.status === 'completed';
-    const confirm = state.confirmDelId === t.id;
+    const isOcc = t.kind === 'occ';
+    const delId = isOcc ? t.masterId : t.id;
+    const confirm = state.confirmDelId === delId;
     const label = done ? null : ctx.D.dueLabel(t.due, today);
     const dueHtml = label ? `<span class="t-due ${label.cls}">${esc(label.text)}</span>` : '';
-    return `<div class="task-row${done ? ' done' : ''}" data-id="${esc(t.id)}">
+    const badge = isOcc && t.repeating ? '<span class="t-rep" title="반복">↻</span>' : '';
+    const attrs = isOcc
+      ? ` data-kind="occ" data-master="${esc(t.masterId)}" data-date="${esc(t.due)}"`
+      : '';
+    return `<div class="task-row${done ? ' done' : ''}" data-id="${esc(t.id)}"${attrs}>
       <input type="checkbox" class="chk" ${done ? 'checked' : ''} title="${done ? '미완료로 표시' : '완료'}">
       <span class="t-title" title="${esc(t.title)}">${esc(t.title)}</span>
+      ${badge}
       ${dueHtml}
-      <button class="row-del${confirm ? ' confirm' : ''}" data-id="${esc(t.id)}">${confirm ? '삭제?' : '✕'}</button>
+      <button class="row-del${confirm ? ' confirm' : ''}" data-id="${esc(delId)}" data-occ="${isOcc ? '1' : ''}">${confirm ? (isOcc ? '반복 전체 삭제?' : '삭제?') : '✕'}</button>
     </div>`;
   }
 

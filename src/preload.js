@@ -28,6 +28,13 @@ contextBridge.exposeInMainWorld('api', {
   deleteTask: (id) => invoke('tasks:delete', id),
   postponeOverdue: () => invoke('tasks:postponeOverdue'),
   listTaskLists: () => invoke('tasklists:list'),
+  // 캘린더
+  listCalendars: () => invoke('calendars:list'),
+  peekCalendar: (id, days) => invoke('calendars:peek', id, days),
+  // 반복 할 일
+  addRecurringTodo: (t) => invoke('todos:addRecurring', t),
+  setTodoDone: (masterId, date, done) => invoke('todos:setDone', masterId, date, done),
+  deleteRecurringTodo: (masterId) => invoke('todos:deleteRecurring', masterId),
   // 창
   setPinned: (pinned) => invoke('window:setPinned', pinned),
   hideWindow: () => invoke('window:hide'),

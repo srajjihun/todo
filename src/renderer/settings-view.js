@@ -5,6 +5,7 @@
   let root = null;
   let ctx = null;
   let lists = null; // 가져온 할 일 목록 캐시
+  let calendars = null; // 캘린더 목록 캐시
   let loggingIn = false;
 
   function init(rootEl, context) {
@@ -30,6 +31,11 @@
 
   async function onChange(e) {
     const t = e.target;
+    if (t.matches('#sel-todocal')) {
+      await ctx.setSettings({ todoCalendarId: t.value });
+      ctx.toast(t.value ? '할 일 캘린더를 설정했습니다' : '할 일 캘린더 연결을 해제했습니다');
+      return;
+    }
     if (t.matches('#sel-tasklist')) {
       await ctx.setSettings({ taskListId: t.value });
       ctx.toast('할 일 목록을 변경했습니다');
@@ -65,13 +71,21 @@
     loggingIn = false;
     if (res) ctx.toast('구글 로그인 완료!');
     lists = null;
+    calendars = null;
     render();
   }
 
   async function doLogout() {
     await ctx.call(ctx.api.logout());
     lists = null;
+    calendars = null;
     ctx.toast('로그아웃했습니다');
+    render();
+  }
+
+  async function fetchCalendars() {
+    const res = await ctx.call(ctx.api.listCalendars());
+    calendars = res || [];
     render();
   }
 
@@ -98,6 +112,10 @@
     if (loggedIn && lists === null) {
       lists = []; // 재요청 방지
       fetchLists();
+    }
+    if (loggedIn && calendars === null) {
+      calendars = [];
+      fetchCalendars();
     }
 
     const listOptions = (lists && lists.length ? lists : [{ id: '@default', title: '기본 목록' }])
@@ -126,7 +144,13 @@
           <button class="btn" id="btn-save-cred" style="margin-left:auto">저장</button>
         </div>
         ${authRow}
-        ${loggedIn ? `<div class="set-row"><label>할 일 목록</label>
+        ${loggedIn ? `<div class="set-row"><label>할 일 캘린더</label>
+          <select id="sel-todocal">
+            <option value="">사용 안 함</option>
+            ${(calendars || []).map((c) => `<option value="${esc(c.id)}" ${c.id === s.todoCalendarId ? 'selected' : ''}>${esc(c.title)}</option>`).join('')}
+          </select></div>
+        <p class="set-note">여기에 지정한 캘린더의 일정은 캘린더 탭에 나오지 않고 <b>할 일 탭</b>에만 표시됩니다. 반복 일정으로 만들면 미래 날짜까지 전부 보입니다.</p>
+        <div class="set-row"><label>할 일 목록</label>
           <select id="sel-tasklist">${listOptions}</select>
           <button class="icon-btn" id="btn-refresh-lists" title="목록 새로고침">⟳</button></div>` : ''}
       </div>

@@ -9,6 +9,8 @@ const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const SCOPES = [
   'https://www.googleapis.com/auth/calendar.events',
+  // 캘린더 목록(공휴일 등 구독 캘린더, 전용 '할 일' 캘린더)을 읽기 위해 필요
+  'https://www.googleapis.com/auth/calendar.readonly',
   'https://www.googleapis.com/auth/tasks',
 ].join(' ');
 const LOGIN_TIMEOUT_MS = 5 * 60 * 1000;

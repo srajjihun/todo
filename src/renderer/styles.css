@@ -621,3 +621,31 @@ html, body {
 .auth-state { font-size: 12px; }
 .auth-state .on { color: var(--green); }
 .auth-state .off { color: var(--text-faint); }
+
+/* 반복 할 일 */
+.t-rep { color: var(--accent); font-size: 11px; flex: 0 0 auto; }
+.repeat-toggle {
+  width: 100%;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 11.5px;
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+.repeat-toggle:hover { background: var(--bg-hover); color: var(--text); }
+#repeat-form select {
+  background: #1a1c22;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 6px;
+  flex: 1;
+  min-width: 0;
+  color-scheme: dark;
+}
