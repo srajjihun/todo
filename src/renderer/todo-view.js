@@ -1,4 +1,4 @@
-// 할 일 탭 — 간결한 리스트: "+ 할일 추가" 입력, 마감일 그룹(기한 초과/오늘/예정/…), 우측 마감 라벨
+// 할 일 탭 — 간결한 리스트: "+ 할일 추가" 입력, 마감일 그룹(기한 초과/오늘/마감일 없음/완료), 우측 마감 라벨
 (function () {
   'use strict';
 
@@ -15,7 +15,6 @@
   const GROUPS = [
     { key: 'overdue', name: '기한 초과', cls: 'overdue' },
     { key: 'today', name: '오늘', cls: '' },
-    { key: 'upcoming', name: '예정', cls: '' },
     { key: 'someday', name: '마감일 없음', cls: '' },
     { key: 'completed', name: '완료', cls: '' },
   ];
