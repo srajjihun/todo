@@ -121,6 +121,8 @@
         <span class="plus">＋</span>
         <input type="text" id="task-title" placeholder="할일 추가" value="${esc(keepTitle)}" autocomplete="off">
         <input type="date" id="task-due" title="마감일 (선택)" value="${esc(keepDue)}">
+        <!-- 숨김 submit 버튼: 필드가 2개라 Enter의 암시적 제출에 반드시 필요 -->
+        <button type="submit" hidden tabindex="-1" aria-hidden="true"></button>
       </form>
       ${sections || (total === 0 ? '<div class="empty-hint">할 일이 없습니다 🎉</div>' : '')}`;
 

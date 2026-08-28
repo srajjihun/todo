@@ -100,6 +100,10 @@
     if (!title || !date) return;
     state.formOpen = false;
     state.selected = date;
+    // 다른 달의 날짜로 추가했으면 그 달로 이동해 결과가 바로 보이게
+    const d = ctx.D.parseDateStr(date);
+    state.year = d.getFullYear();
+    state.month = d.getMonth();
     const res = await ctx.call(ctx.api.addEvent({ title, date, allDay, startTime, endTime }));
     if (res) ctx.toast('일정을 추가했습니다');
     render();
@@ -142,6 +146,11 @@
       const dot = buckets[c.dateStr] ? '<span class="dot"></span>' : '';
       return `<button class="${cls.join(' ')}" data-date="${c.dateStr}">${c.day}${dot}</button>`;
     }).join('');
+
+    // 백그라운드 동기화로 다시 그릴 때 폼 입력 포커스/커서 유지
+    const active = document.activeElement;
+    const activeId = active && root.contains(active) ? active.id : null;
+    const caret = activeId && typeof active.selectionStart === 'number' ? active.selectionStart : null;
 
     const dayEvents = buckets[state.selected] || [];
     const rows = dayEvents.map((ev) => {
@@ -193,6 +202,16 @@
         ${form}
         ${rows}
       </div>`;
+
+    if (activeId) {
+      const el = root.querySelector('#' + activeId);
+      if (el) {
+        el.focus();
+        if (caret !== null && typeof el.setSelectionRange === 'function' && el.type === 'text') {
+          try { el.setSelectionRange(caret, caret); } catch { /* 무시 */ }
+        }
+      }
+    }
   }
 
   window.CalendarView = { init, render };

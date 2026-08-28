@@ -101,6 +101,20 @@ test('applyEventsDelta: cancelled → 삭제, 그 외 upsert', () => {
   assert.equal(events.e2.title, '새 일정');
 });
 
+test('applyEventsDelta: 반복 일정 마스터 취소 → 확장 인스턴스까지 삭제', () => {
+  const events = {
+    'master1_20260901T000000Z': { id: 'master1_20260901T000000Z' },
+    'master1_20260908T000000Z': { id: 'master1_20260908T000000Z' },
+    'master10': { id: 'master10' }, // 접두사가 비슷해도 '_' 경계가 달라 남아야 함
+    other: { id: 'other' },
+  };
+  logic.applyEventsDelta(events, [{ id: 'master1', status: 'cancelled' }]);
+  assert.equal(events['master1_20260901T000000Z'], undefined);
+  assert.equal(events['master1_20260908T000000Z'], undefined);
+  assert.ok(events.master10);
+  assert.ok(events.other);
+});
+
 test('isTempId', () => {
   assert.ok(logic.isTempId('local-123'));
   assert.ok(!logic.isTempId('abc'));

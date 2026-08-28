@@ -40,10 +40,18 @@ function setPinnedEverywhere(pinned) {
   sync.pushState();
 }
 
-const SETTABLE_KEYS = new Set([
-  'clientId', 'clientSecret', 'taskListId', 'syncIntervalMin', 'autoLaunch',
-  'pomoFocusMin', 'pomoShortBreakMin', 'pomoLongBreakMin', 'pomoLongBreakEvery',
-]);
+// 키 허용 목록 + 타입 검증 (잘못된 값이 설정/큐를 망가뜨리지 않게)
+const SETTABLE_KEYS = {
+  clientId: 'string',
+  clientSecret: 'string',
+  taskListId: 'string',
+  syncIntervalMin: 'number',
+  autoLaunch: 'boolean',
+  pomoFocusMin: 'number',
+  pomoShortBreakMin: 'number',
+  pomoLongBreakMin: 'number',
+  pomoLongBreakEvery: 'number',
+};
 
 function init(s) {
   stores = s;
@@ -54,7 +62,9 @@ function init(s) {
     const prev = { ...stores.settings.data };
     const clean = {};
     for (const [k, v] of Object.entries(partial || {})) {
-      if (SETTABLE_KEYS.has(k)) clean[k] = v;
+      if (SETTABLE_KEYS[k] && typeof v === SETTABLE_KEYS[k] && (typeof v !== 'number' || Number.isFinite(v))) {
+        clean[k] = v;
+      }
     }
     stores.settings.update(clean);
     const next = stores.settings.data;
@@ -81,7 +91,6 @@ function init(s) {
     return { loggedIn: true };
   });
   handle('auth:logout', () => { auth.logout(); sync.setStatus({ phase: 'auth-required' }); sync.pushState(); });
-  handle('auth:status', () => ({ loggedIn: auth.isLoggedIn() }));
 
   handle('state:get', () => sync.getState());
   handle('sync:now', () => { sync.syncNow('manual'); });
@@ -113,10 +122,6 @@ function init(s) {
 
   handle('misc:openSetupGuide', () => {
     return shell.openPath(path.join(app.getAppPath(), 'SETUP.md'));
-  });
-  handle('shell:openExternal', (url) => {
-    if (typeof url === 'string' && url.startsWith('https://')) return shell.openExternal(url);
-    throw new Error('허용되지 않는 URL입니다');
   });
 }
 

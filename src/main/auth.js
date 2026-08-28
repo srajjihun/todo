@@ -109,6 +109,11 @@ async function refreshAccessToken() {
   }
   accessToken = data.access_token;
   accessTokenExpiry = Date.now() + (data.expires_in || 3600) * 1000;
+  // 구글이 리프레시 토큰을 회전(재발급)해 주면 새 토큰으로 교체 저장
+  if (data.refresh_token && data.refresh_token !== refreshToken) {
+    refreshToken = data.refresh_token;
+    saveRefreshToken(data.refresh_token);
+  }
   return accessToken;
 }
 

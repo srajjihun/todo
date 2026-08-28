@@ -87,11 +87,20 @@ function applyPendingToEvents(serverEvents, localEvents, ops) {
   return out;
 }
 
-// 증분(pull) 델타 적용: status=cancelled → 삭제, 그 외 upsert
+// 증분(pull) 델타 적용: status=cancelled → 삭제, 그 외 upsert.
+// 캐시는 singleEvents 확장 인스턴스 id('마스터id_20260901T…')로 키가 잡혀 있는데,
+// 반복 일정 전체 삭제 시 델타에는 확장되지 않은 마스터 id가 오므로 접두사 일치로도 지운다.
 function applyEventsDelta(events, items) {
   for (const item of items) {
-    if (item.status === 'cancelled') delete events[item.id];
-    else events[item.id] = normalizeEvent(item);
+    if (item.status === 'cancelled') {
+      delete events[item.id];
+      const prefix = item.id + '_';
+      for (const k of Object.keys(events)) {
+        if (k.startsWith(prefix)) delete events[k];
+      }
+    } else {
+      events[item.id] = normalizeEvent(item);
+    }
   }
   return events;
 }

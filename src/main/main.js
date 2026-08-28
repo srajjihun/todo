@@ -8,7 +8,9 @@ const windowMod = require('./window');
 const tray = require('./tray');
 const ipc = require('./ipc');
 
-app.setAppUserModelId('com.siraj.desk-widget');
+// Windows 토스트 알림은 셸에 등록된 AppUserModelId가 필요 — 개발 실행(electron .)에서는
+// 커스텀 AUMID가 등록돼 있지 않아 알림이 조용히 사라지므로 실행 파일 경로를 쓴다
+app.setAppUserModelId(app.isPackaged ? 'com.siraj.desk-widget' : process.execPath);
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
@@ -28,7 +30,10 @@ if (!gotLock) {
     const stores = createStores(app.getPath('userData'));
     auth.init(stores);
 
-    const win = windowMod.create(stores.settings, { isQuitting: () => quitting });
+    const win = windowMod.create(stores.settings, {
+      isQuitting: () => quitting,
+      onSessionEnd: () => { quitting = true; }, // OS 종료/로그오프가 close에 막히지 않게
+    });
 
     ipc.init(stores);
 

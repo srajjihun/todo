@@ -40,7 +40,6 @@ contextBridge.exposeInMainWorld('api', {
   pomoSkip: () => invoke('pomo:skip'),
   // 기타
   openSetupGuide: () => invoke('misc:openSetupGuide'),
-  openExternal: (url) => invoke('shell:openExternal', url),
   // 푸시 구독
   onStateChanged: on('push:state-changed'),
   onSyncStatus: on('push:sync-status'),

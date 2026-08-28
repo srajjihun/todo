@@ -6,17 +6,23 @@ const CAL_BASE = 'https://www.googleapis.com/calendar/v3';
 const TASKS_BASE = 'https://tasks.googleapis.com/tasks/v1';
 
 class ApiError extends Error {
-  constructor(status, message) {
+  constructor(status, message, reason) {
     super(message || `HTTP ${status}`);
     this.name = 'ApiError';
     this.status = status;
+    this.reason = reason || null;
   }
 }
 
 // 네트워크 단절/서버 오류/쿼터 → 나중에 재시도 가능
 function isRetryable(e) {
   if (e instanceof auth.AuthRequiredError) return false;
-  if (e instanceof ApiError) return e.status >= 500 || e.status === 429 || e.status === 408;
+  if (e instanceof ApiError) {
+    if (e.status >= 500 || e.status === 429 || e.status === 408) return true;
+    // 구글은 레이트리밋/쿼터 초과를 403으로도 반환한다 — 영구 실패로 오인해 폐기하면 안 됨
+    if (e.status === 403 && /rate|quota/i.test(`${e.reason || ''} ${e.message}`)) return true;
+    return false;
+  }
   return true; // fetch TypeError(오프라인), 소켓 오류 등
 }
 
@@ -38,7 +44,9 @@ async function apiFetch(url, { method = 'GET', body, retryOn401 = true } = {}) {
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch { /* JSON 아님 */ }
   if (!res.ok) {
-    throw new ApiError(res.status, (data && data.error && data.error.message) || res.statusText);
+    const err = data && data.error;
+    const reason = (err && err.errors && err.errors[0] && err.errors[0].reason) || (err && err.status);
+    throw new ApiError(res.status, (err && err.message) || res.statusText, reason);
   }
   return data;
 }

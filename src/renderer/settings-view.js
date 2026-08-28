@@ -39,7 +39,10 @@
       await ctx.setSettings({ autoLaunch: t.checked });
       ctx.toast(t.checked ? 'Windows 시작 시 자동 실행합니다' : '자동 실행을 껐습니다');
     } else if (t.matches('.pomo-num')) {
-      const v = Math.max(1, Math.min(180, Number(t.value) || 1));
+      const min = Number(t.min) || 1;
+      const max = Number(t.max) || 180;
+      const v = Math.max(min, Math.min(max, Number(t.value) || min));
+      t.value = String(v); // 잘린 값을 입력창에도 반영
       await ctx.setSettings({ [t.dataset.key]: v });
     }
   }
@@ -82,6 +85,14 @@
     const s = ctx.getSettings() || {};
     const loggedIn = !!(ctx.getData() && ctx.getData().loggedIn);
 
+    // 비동기 재렌더(목록 로드/로그인 푸시)가 입력 중인 자격증명을 지우지 않게 보존
+    const prevId = root.querySelector('#in-client-id');
+    const prevSecret = root.querySelector('#in-client-secret');
+    const keepId = prevId ? prevId.value : null;
+    const keepSecret = prevSecret ? prevSecret.value : null;
+    const activeId = document.activeElement && root.contains(document.activeElement)
+      ? document.activeElement.id : null;
+
     if (loggedIn && lists === null) {
       lists = []; // 재요청 방지
       fetchLists();
@@ -105,9 +116,9 @@
       <div class="set-section">
         <h3>구글 연동</h3>
         <div class="set-row"><label>클라이언트 ID</label>
-          <input type="text" id="in-client-id" class="wide" value="${esc(s.clientId || '')}" placeholder="xxx.apps.googleusercontent.com"></div>
+          <input type="text" id="in-client-id" class="wide" value="${esc(keepId !== null ? keepId : (s.clientId || ''))}" placeholder="xxx.apps.googleusercontent.com"></div>
         <div class="set-row"><label>클라이언트 보안 비밀</label>
-          <input type="password" id="in-client-secret" class="wide" value="${esc(s.clientSecret || '')}"></div>
+          <input type="password" id="in-client-secret" class="wide" value="${esc(keepSecret !== null ? keepSecret : (s.clientSecret || ''))}"></div>
         <div class="set-row">
           <button class="set-link" id="btn-guide">📖 설정 가이드 보기 (SETUP.md)</button>
           <button class="btn" id="btn-save-cred" style="margin-left:auto">저장</button>
@@ -145,6 +156,16 @@
         <div class="set-row"><label>위젯 위치</label>
           <button class="btn" id="btn-reset-pos">우측 하단으로 초기화</button></div>
       </div>`;
+
+    if (activeId) {
+      const el = root.querySelector('#' + activeId);
+      if (el) {
+        el.focus();
+        if (typeof el.setSelectionRange === 'function' && (el.type === 'text' || el.type === 'password')) {
+          try { el.setSelectionRange(el.value.length, el.value.length); } catch { /* 무시 */ }
+        }
+      }
+    }
   }
 
   window.SettingsView = { init, render };
