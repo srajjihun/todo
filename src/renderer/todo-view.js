@@ -1,4 +1,4 @@
-// 할 일 탭 — 간결한 리스트: "+ 할일 추가" 입력, 마감일 그룹(기한 초과/오늘/마감일 없음/완료), 우측 마감 라벨
+// 할 일 탭 — 간결한 리스트: "+ 할일 추가" 입력, 마감일 그룹(지난 일/오늘/마감일 없음/완료), 우측 마감 라벨
 (function () {
   'use strict';
 
@@ -14,7 +14,7 @@
   };
 
   const GROUPS = [
-    { key: 'overdue', name: '기한 초과', cls: 'overdue' },
+    { key: 'overdue', name: '지난 일', cls: 'overdue' },
     { key: 'today', name: '오늘', cls: '' },
     { key: 'someday', name: '마감일 없음', cls: '' },
     { key: 'completed', name: '완료', cls: '' },
@@ -136,6 +136,9 @@
     // 구글 할 일(Tasks) + 전용 캘린더의 반복 할 일 발생분을 한 목록으로 합친다
     const merged = [...(data.tasks || []), ...(data.todoOccurrences || [])];
     const groups = D.groupTasks(merged, today);
+    // 할 일 캘린더에서 온 항목(kind==='occ')은 지난 일로 쌓지 않는다.
+    // 지나간 일정은 되돌려 할 수 있는 게 아니므로 목록만 어지럽힌다.
+    groups.overdue = groups.overdue.filter((t) => t.kind !== 'occ');
 
     // 입력 중이던 내용 보존 (백그라운드 동기화로 다시 그려질 때)
     const prevTitle = root.querySelector('#task-title');
@@ -159,7 +162,7 @@
       if (!items || items.length === 0) return '';
       const isCollapsed = state.collapsed.has(g.key);
       const action = g.key === 'overdue'
-        ? '<span class="grp-action" title="기한 초과 항목을 모두 오늘로 연기">연기</span>'
+        ? '<span class="grp-action" title="지난 일을 모두 오늘로 옮기기">연기</span>'
         : '';
       const rows = isCollapsed ? '' : items.map((t) => taskRow(t, today)).join('');
       return `

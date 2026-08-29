@@ -84,3 +84,17 @@ test('weekOf: 일요일을 주면 그 날이 첫날', () => {
 test('weekTitle', () => {
   assert.equal(D.weekTitle(D.weekOf('2026-09-01')), '8월 30일 – 9월 5일');
 });
+
+test('지난 일 그룹: 캘린더에서 온 항목(kind=occ)은 제외하고 구글 할 일만 남긴다', () => {
+  const today = '2026-08-30';
+  const merged = [
+    { id: 't1', title: '보고서', due: '2026-08-28', status: 'needsAction' },                    // 구글 할 일 → 남아야 함
+    { id: 'o1', title: '헬스', due: '2026-08-29', status: 'needsAction', kind: 'occ', repeating: true },
+    { id: 'o2', title: '단발일정', due: '2026-08-27', status: 'needsAction', kind: 'occ', repeating: false },
+  ];
+  const g = D.groupTasks(merged, today);
+  assert.equal(g.overdue.length, 3, '분류 자체는 셋 다 지난 날짜');
+  // 화면에 그릴 때 적용하는 규칙
+  const shown = g.overdue.filter((t) => t.kind !== 'occ');
+  assert.deepEqual(shown.map((t) => t.title), ['보고서'], '캘린더 항목은 빠지고 할 일만 남는다');
+});
