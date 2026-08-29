@@ -119,3 +119,13 @@ test('isTempId', () => {
   assert.ok(logic.isTempId('local-123'));
   assert.ok(!logic.isTempId('abc'));
 });
+
+test('normalizeTask: 완료 시각을 날짜로 보존한다', () => {
+  const done = logic.normalizeTask({
+    id: 't9', title: '보고서', status: 'completed',
+    completed: '2026-08-30T04:12:00.000Z', due: null, position: '0',
+  });
+  assert.equal(done.completedAt, '2026-08-30');
+  const open = logic.normalizeTask({ id: 't8', title: '진행중', status: 'needsAction' });
+  assert.equal(open.completedAt, null);
+});

@@ -139,6 +139,11 @@
     // 할 일 캘린더에서 온 항목(kind==='occ')은 지난 일로 쌓지 않는다.
     // 지나간 일정은 되돌려 할 수 있는 게 아니므로 목록만 어지럽힌다.
     groups.overdue = groups.overdue.filter((t) => t.kind !== 'occ');
+    // 완료 그룹은 오늘 끝낸 것만 남긴다. 어제 것까지 쌓이면 목록이 계속 길어진다.
+    // 캘린더 항목은 발생 날짜(due)로, 구글 할 일은 완료 시각으로 판단한다.
+    groups.completed = groups.completed.filter((t) => (
+      t.kind === 'occ' ? t.due === today : t.completedAt === today
+    ));
 
     // 입력 중이던 내용 보존 (백그라운드 동기화로 다시 그려질 때)
     const prevTitle = root.querySelector('#task-title');

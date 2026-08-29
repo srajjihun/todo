@@ -654,7 +654,9 @@ async function patchTaskLocal(taskId, patchPayload, patchNorm) {
 
 function setTaskCompleted(taskId, completed) {
   const status = completed ? 'completed' : 'needsAction';
-  return patchTaskLocal(taskId, { status }, { status });
+  // 서버 응답을 기다리지 않고도 '오늘 완료'로 보이도록 완료 날짜를 함께 반영한다
+  const completedAt = completed ? logic.toLocalDateStr(new Date()) : null;
+  return patchTaskLocal(taskId, { status }, { status, completedAt });
 }
 
 function postponeTaskToToday(taskId) {

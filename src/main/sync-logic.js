@@ -54,6 +54,8 @@ function normalizeTask(t) {
     status: t.status === 'completed' ? 'completed' : 'needsAction',
     position: t.position || '',
     updated: t.updated || null,
+    // 완료 시각(구글이 관리). '오늘 완료한 것만' 보여주려면 이 값이 필요하다.
+    completedAt: t.completed ? t.completed.slice(0, 10) : null,
   };
 }
 

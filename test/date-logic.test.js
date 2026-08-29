@@ -98,3 +98,18 @@ test('지난 일 그룹: 캘린더에서 온 항목(kind=occ)은 제외하고 �
   const shown = g.overdue.filter((t) => t.kind !== 'occ');
   assert.deepEqual(shown.map((t) => t.title), ['보고서'], '캘린더 항목은 빠지고 할 일만 남는다');
 });
+
+test('완료 그룹: 오늘 끝낸 것만 남기고 어제 것은 뺀다', () => {
+  const today = '2026-08-30';
+  const merged = [
+    { id: 'o1', title: '헬스', due: '2026-08-30', status: 'completed', kind: 'occ' },      // 오늘 발생분 완료 → 표시
+    { id: 'o2', title: '헬스', due: '2026-08-29', status: 'completed', kind: 'occ' },      // 어제 → 제외
+    { id: 't1', title: '보고서', due: null, status: 'completed', completedAt: '2026-08-30' }, // 오늘 완료 → 표시
+    { id: 't2', title: '옛날 일', due: null, status: 'completed', completedAt: '2026-08-20' }, // 예전 → 제외
+    { id: 't3', title: '완료시각없음', due: null, status: 'completed', completedAt: null },     // 알 수 없음 → 제외
+  ];
+  const g = D.groupTasks(merged, today);
+  assert.equal(g.completed.length, 5, '분류 자체는 완료 5건');
+  const shown = g.completed.filter((t) => (t.kind === 'occ' ? t.due === today : t.completedAt === today));
+  assert.deepEqual(shown.map((t) => t.id).sort(), ['o1', 't1']);
+});
